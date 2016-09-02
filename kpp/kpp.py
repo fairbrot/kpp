@@ -156,6 +156,7 @@ class KPP(KPPBase):
     for i in range(k):
       print("Colour", i,": ", clusters[i], file=self.out)
 
+    print("Clashes: ", file=self.out)
     for e in self.G.es():
       u = min(e.source, e.target)
       v = max(e.source, e.target)
@@ -163,12 +164,18 @@ class KPP(KPPBase):
         print((u,v), end=', ', file=self.out)
     print('\n', file=self.out)
 
-class KPPExtension:
+class KPPExtension(KPPBase):
   def __init__(self, G):
     KPPBase.__init__(self, G)
     self.k1 = 3
     self.k2 = 6
     
+  def add_z_variables(self):
+    for e in self.G.es():
+      u = min(e.source, e.target)
+      v = max(e.source, e.target)
+      self.z[u,v] = self.model.addVar(obj=1.0,ub=1.0)
+
   def add_node_variables(self):
     n=self.G.vcount()
     for i in range(n):
@@ -198,3 +205,33 @@ class KPPExtension:
         self.model.addConstr(self.x[v,i] >= self.x[u,i] + self.z[u,v] - 1.0)
     self.model.update()
 
+  def print_solution(self):
+    sol = self.get_solution()
+    x, y, z = sol.x, sol.y, sol.z
+    clusters = []
+    n = self.G.vcount()
+    if x:
+      for i in range(self.k2):
+        cluster = []
+        for j in range(n):
+          if abs(x[j,i] - 1.0) < 1e-4:
+            cluster.append(j)
+        clusters.append(cluster)
+      for i in range(self.k2):
+        print("Colour", i,": ", clusters[i], file=self.out)
+
+    print("3-Clashes: ")
+    for e in self.G.es():
+      u = min(e.source, e.target)
+      v = max(e.source, e.target)
+      if abs(y[u,v] - 1.0) < 1e-4:
+        print((u,v), end=', ', file=self.out)
+    print('\n', file=self.out)
+
+    print("6-Clashes: ")
+    for e in self.G.es():
+      u = min(e.source, e.target)
+      v = max(e.source, e.target)
+      if abs(z[u,v] - 1.0) < 1e-4:
+        print((u,v), end=', ', file=self.out)
+    print('\n', file=self.out)
