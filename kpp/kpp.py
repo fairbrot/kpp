@@ -1,13 +1,13 @@
+from abc import ABCMeta, abstractmethod
 import sys
 from gurobipy import *
 import igraph as ig
 
 from .separation import *
 
-class KPP:
-  def __init__(self, G, k):
+class KPPBase(metaclass=ABCMeta):
+  def __init__(self, G):
     self.G=G
-    self.k=k
     self.model=Model()
     self.model.modelSense=GRB.MINIMIZE
     self.y={}
@@ -22,30 +22,10 @@ class KPP:
     self.sep_algs=[]
     self.out = sys.stdout
 
-  def get_y_values(self):
-    return self.model.getAttr('x', self.y)
-    
-  def add_separator(self, sep_alg):
-    self.sep_algs.append(sep_alg)
-
-  def add_constraint(self, constraint):
-    expr=LinExpr()
-    for e,coef in constraint.y_coefs.items():
-      expr.addTerms(coef, self.y[e])
-    # for e,coef, in constraint.z_coefs:
-    #   expr.addTerms(coef, self.z[e])
-    if constraint.op=='<':
-      cons=self.model.addConstr(expr<=constraint.rhs)
-    elif constraint.op=='>':
-      cons=self.model.addConstr(expr>=constraint.rhs)
-    elif constraint.op=='==':
-      cons=self.model.addConstr(expr==constraint.rhs)
-    self.constraints.append(cons)
-
-  def discretize(self):
-    for var in self.y.values(): var.vtype='B'
-    for var in self.z.values(): var.vtype='B'
-    self.model.update()
+  def get_solution(self):
+    return Solution(self.model.getAttr('x', self.x), 
+                    self.model.getAttr('x', self.y),
+                    self.model.getAttr('x', self.z))
 
   def cut(self):
     if self.x:
@@ -64,11 +44,9 @@ class KPP:
       self.model.optimize()
       print(" Objective value: ", self.model.objVal, file=self.out)
       new_constraints=[]
-      y = self.get_y_values()
-      #print(y)
-#      z = self.get_z_values()
+      sol = self.get_solution()
       for sep_alg in self.sep_algs:
-        constr_list=sep_alg.find_violated_constraints(y)
+        constr_list=sep_alg.find_violated_constraints(sol)
         new_constraints.extend(constr_list)
         
       total_added+=len(new_constraints)
@@ -103,14 +81,54 @@ class KPP:
     self.model.update()
     return slack+dual
 
+  def add_separator(self, sep_alg):
+    self.sep_algs.append(sep_alg)
+
+  def add_constraint(self, constraint):
+    expr=LinExpr()
+    for e,coef in constraint.x_coefs.items():
+      expr.addTerms(coef, self.x[e])
+    for e,coef in constraint.y_coefs.items():
+      expr.addTerms(coef, self.y[e])
+    for e,coef in constraint.z_coefs.items():
+      expr.addTerms(coef, self.z[e])
+    if constraint.op=='<':
+      cons=self.model.addConstr(expr<=constraint.rhs)
+    elif constraint.op=='>':
+      cons=self.model.addConstr(expr>=constraint.rhs)
+    elif constraint.op=='==':
+      cons=self.model.addConstr(expr==constraint.rhs)
+    self.constraints.append(cons)
+
+  def solve(self):
+    n = self.G.vcount()
+    print("Solving k-partition problem", file=self.out)
+    if not self.x: self.add_node_variables()
+    self.model.optimize()
+    print("Optimal objective value: ", self.model.objVal, file=self.out)
+
+  @abstractmethod
   def add_node_variables(self):
-    for i in range(self.G.vcount()):
+    pass
+
+  @abstractmethod
+  def print_solution(self):
+    pass
+
+class KPP(KPPBase):
+  def __init__(self, G, k):
+    KPPBase.__init__(self, G)
+    self.k=k
+
+  def add_node_variables(self):
+    n=self.G.vcount()
+    for i in range(n):
       for j in range(self.k):
         self.x[i,j] = self.model.addVar(vtype=GRB.BINARY)
         
     self.model.update()
       
-    for i in range(self.G.vcount()):
+    for i in range(n):
       total_assign = LinExpr()
       for j in range(self.k):
         total_assign.addTerms(1.0, self.x[i,j])
@@ -125,16 +143,9 @@ class KPP:
         self.model.addConstr(self.x[v,i] >= self.x[u,i] + self.y[u,v] - 1.0)
     self.model.update()
 
-  def solve(self):
-    n = self.G.vcount()
-    print("Solving k-partition problem", file=self.out)
-    self.discretize()
-    if not self.x: self.add_node_variables()
-    
-    self.model.optimize()
-    print("Optimal objective value: ", self.model.objVal, file=self.out)
-    x = self.model.getAttr('x', self.x)
-    y = self.get_y_values()
+  def print_solution(self):
+    sol = self.get_solution()
+    x, y = sol.x, sol.y
     clusters = []
     for i in range(k):
       cluster = []
@@ -152,19 +163,38 @@ class KPP:
         print((u,v), end=', ', file=self.out)
     print('\n', file=self.out)
 
-if __name__=='__main__':
-  n, R = 30, 0.25
-  G = ig.Graph.GRG(n, R)
-  print(G)
-  print(G.maximal_cliques())
-  k = 3
+class KPPExtension:
+  def __init__(self, G):
+    KPPBase.__init__(self, G)
+    self.k1 = 3
+    self.k2 = 6
+    
+  def add_node_variables(self):
+    n=self.G.vcount()
+    for i in range(n):
+      for j in range(self.k2):
+        self.x[i,j] = self.model.addVar(vtype=GRB.BINARY)
+        
+    self.model.update()
 
-  kpp = KPP(G, k)
+    for i in range(n):
+      total_assign = LinExpr()
+      for j in range(self.k2):
+        total_assign.addTerms(1.0, self.x[i,j])
+      self.model.addConstr(total_assign == 1.0)
 
-  sep_alg_1 = CliqueSeparator(G.maximal_cliques(), k+1, k)
-  sep_alg_2 = CliqueSeparator(G.maximal_cliques(), k+2, k)
-  kpp.add_separator(sep_alg_1)
-  kpp.add_separator(sep_alg_2)
-  kpp.cut()
-  kpp.remove_redundant_constraints(True)
-  kpp.solve()
+    for e in self.G.es():
+      u = min(e.source, e.target)
+      v = max(e.source, e.target)
+      for i in range(self.k1):
+        self.model.addConstr(self.y[u,v] >= self.x[u,i] + self.x[u,i+self.k1] + self.x[v,i] + self.x[v,i+self.k1] - 1.0)
+
+    for e in self.G.es():
+      u = min(e.source, e.target)
+      v = max(e.source, e.target)
+      for i in range(self.k2):
+        self.model.addConstr(self.z[u,v] >= self.x[u,i] +  self.x[v,i] - 1.0)
+        self.model.addConstr(self.x[u,i] >= self.x[v,i] + self.z[u,v] - 1.0)
+        self.model.addConstr(self.x[v,i] >= self.x[u,i] + self.z[u,v] - 1.0)
+    self.model.update()
+
