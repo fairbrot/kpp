@@ -177,6 +177,7 @@ class KPPExtension(KPPBase):
       self.z[u,v] = self.model.addVar(obj=1.0,ub=1.0)
 
   def add_node_variables(self):
+    if not self.z: self.add_z_variables()
     n=self.G.vcount()
     for i in range(n):
       for j in range(self.k2):
