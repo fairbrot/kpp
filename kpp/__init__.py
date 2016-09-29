@@ -1,4 +1,4 @@
-from .separation import CliqueSeparator, Constraint, y_clique_constraint, YZCliqueSeparator, yz_clique_constraint
+from .separation import CliqueSeparator, Constraint, YCliqueSeparator, YZCliqueSeparator, ZCliqueSeparator
 from .kpp import KPP, KPPExtension
 from . import graph
 

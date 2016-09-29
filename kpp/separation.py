@@ -36,9 +36,6 @@ class Constraint(Structure):
     out += str(self.rhs)
     return out
 
-
-
-
 def p_edge_cliques(max_cliques, p):
   p_cliques=[]
   edge_cliques=[]
@@ -50,32 +47,29 @@ def p_edge_cliques(max_cliques, p):
     edge_cliques.append(edge_clq)
   return edge_cliques
 
-class Separator(metaclass=ABCMeta):
-  def __init__(self):
+class CliqueSeparator(metaclass=ABCMeta):
+  def __init__(self, max_cliques, p):
     self.max_constraints=10
     self.out=sys.stdout
     self.eps=1e-3
-  
-  @abstractmethod
-  def find_violated_constraints(self, sol):
-    pass
-
-class CliqueSeparator(Separator):
-  def __init__(self, max_cliques, p, k):
-    Separator.__init__(self)
     self.edge_cliques=p_edge_cliques(max_cliques,p)
-    self.p=p
-    self.k=k
+    self.p = p # Clique size
+
+  @abstractmethod
+  def calculate_violation(self, sol, e_clq):
+    pass
 
   def find_violated_cliques(self, sol):
     viol_edge_cliques=[]
-    y_values = sol.y
     for e_clq in self.edge_cliques:
-      total = sum(y_values[e] for e in e_clq)
-      diff = clique_rhs(self.p, self.k) - total
-      if diff > self.eps:
-        viol_edge_cliques.append((e_clq, diff))
+      viol = self.calculate_violation(sol, e_clq)
+      if viol > self.eps:
+        viol_edge_cliques.append((e_clq, viol))
     return viol_edge_cliques
+
+  @abstractmethod
+  def clique_constraint(self, e_clq):
+    pass
 
   def find_violated_constraints(self, sol):
     cons=[]
@@ -85,69 +79,53 @@ class CliqueSeparator(Separator):
     print(" Adding {}/{} violated {}-cliques".format(to_add, num_viol, self.p), file=self.out)
     if to_add < num_viol:
       viol_edge_cliques = heapq.nlargest(to_add, viol_edge_cliques,key=lambda s:s[1])
-      
-    #print(viol_edge_cliques)
-    for e_clq, diff in viol_edge_cliques:
-      #print(e_clq)
-      cons.append(y_clique_constraint(e_clq, self.p, self.k))
+    for e_clq, viol in viol_edge_cliques:
+      cons.append(self.clique_constraint(e_clq))
     return cons
 
-def y_clique_constraint(e_clq, p, k):
-  y_coefs=dict()
-  #print(e_clq)
-  for e in e_clq:
-    y_coefs[e]=1.0
-  #print(y_coefs)
-  return Constraint({}, y_coefs,{},clique_rhs(p,k),'>')
+class YCliqueSeparator(CliqueSeparator):
+  def __init__(self, max_cliques, p, k):
+    CliqueSeparator.__init__(self, max_cliques, p)
+    self.k = k
+    
+  def calculate_violation(self, sol, e_clq):
+    total = sum(sol.y[e] for e in e_clq)
+    return clique_rhs(self.p, self.k) - total
+
+  def clique_constraint(self, e_clq):
+    return Constraint({}, {e:1.0 for e in e_clq}, {}, clique_rhs(self.p, self.k), '>')
+
+class ZCliqueSeparator(CliqueSeparator):
+  def __init__(self, max_cliques, p, k):
+    CliqueSeparator.__init__(self, max_cliques, p)
+    self.k = k
+    
+  def calculate_violation(self, sol, e_clq):
+    total = sum(sol.z[e] for e in e_clq)
+    return clique_rhs(self.p, self.k) - total
+
+  def clique_constraint(self, e_clq):
+    return Constraint({}, {}, {e:1.0 for e in e_clq}, clique_rhs(self.p, self.k),'>')
+
+
+class YZCliqueSeparator(CliqueSeparator):
+  def __init__(self, max_cliques, p):
+    CliqueSeparator.__init__(self, max_cliques, p)
+
+  def calculate_violation(self, sol, e_clq):
+    lhs = 0.5*sum(sol.y[e] for e in e_clq) - sum(sol.z[e] for e in e_clq)
+
+    return lhs - yz_clique_rhs(self.p)
+
+  def clique_constraint(self, e_clq):
+    return Constraint({}, {e:0.5 for e in e_clq}, {e:-1.0 for e in e_clq}, yz_clique_rhs(self.p),'<')
 
 def clique_rhs(p,k):
   t=p//k
   r=p%k
   return 0.5*t*((t-1)*(k-r) + (t+1)*r)
 
-class YZCliqueSeparator(Separator):
-  def __init__(self, max_cliques, p):
-    Separator.__init__(self)
-    self.edge_cliques=p_edge_cliques(max_cliques,p)
-    self.p=p
-
-  def find_violated_cliques(self, sol):
-    viol_edge_cliques=[]
-    y_values = sol.y
-    z_values = sol.z
-    for e_clq in self.edge_cliques:
-      sum_y = sum(y_values[e] for e in e_clq)
-      sum_z = sum(z_values[e] for e in e_clq)
-      #print("Sum_y =", sum_y, "\nSum_z =", sum_z)
-      lhs = 0.5*sum_y - sum_z
-      #print("rhs = ", yz_clique_rhs(self.p))
-      diff = lhs - yz_clique_rhs(self.p)
-      #print("diff =", diff)
-      if diff > self.eps:
-        viol_edge_cliques.append((e_clq, diff))
-    return viol_edge_cliques
-
-  def find_violated_constraints(self, sol):
-    cons=[]
-    viol_edge_cliques=self.find_violated_cliques(sol)
-    num_viol=len(viol_edge_cliques)
-    to_add=min(num_viol, self.max_constraints)
-    print(" Adding {}/{} violated {}-cliques".format(to_add, num_viol, self.p), file=self.out)
-    if to_add < num_viol:
-      viol_edge_cliques = heapq.nlargest(to_add, viol_edge_cliques,key=lambda s:s[1])
-      
-    for e_clq, diff in viol_edge_cliques:
-      cons.append(yz_clique_constraint(e_clq, self.p))
-    return cons
-
 def yz_clique_rhs(p):
   if p % 2: return (p-1)/4
   else: return p/4
 
-def yz_clique_constraint(e_clq, p):
-  y_coefs, z_coefs = {}, {}
-  for e in e_clq:
-    y_coefs[e] = 0.5
-    z_coefs[e] = -1.0
-  return Constraint({}, y_coefs, z_coefs, 
-                    yz_clique_rhs(p), '<')
