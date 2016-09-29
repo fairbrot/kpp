@@ -1,0 +1,4 @@
+*~
+*.log
+*__pycache__*
+kpp.egg-info
