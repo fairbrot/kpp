@@ -7,7 +7,7 @@ seed(1)
 
 class TestKPP(unittest.TestCase):
   def setUp(self):
-    self.G = ig.Graph.GRG(30, 0.35)
+    self.G = ig.Graph.GRG(20, 0.5)
     self.max_cliques = self.G.maximal_cliques()
     print(self.max_cliques)
     
@@ -33,7 +33,7 @@ class TestKPP(unittest.TestCase):
     y_sep_alg_1 = YCliqueSeparator(self.max_cliques, 4, 3)
     y_sep_alg_2 = YCliqueSeparator(self.max_cliques, 5, 3)
     yz_sep_alg = YZCliqueSeparator(self.max_cliques, 7)
-    z_sep_alg = ZCliqueSeparator(self.max_cliques, 8, 3)
+    z_sep_alg = ZCliqueSeparator(self.max_cliques, 8)
     cuts_kpp.add_separator(y_sep_alg_1)
     cuts_kpp.add_separator(y_sep_alg_2)
     cuts_kpp.cut()

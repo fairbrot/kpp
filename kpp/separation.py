@@ -96,9 +96,9 @@ class YCliqueSeparator(CliqueSeparator):
     return Constraint({}, {e:1.0 for e in e_clq}, {}, clique_rhs(self.p, self.k), '>')
 
 class ZCliqueSeparator(CliqueSeparator):
-  def __init__(self, max_cliques, p, k):
+  def __init__(self, max_cliques, p):
     CliqueSeparator.__init__(self, max_cliques, p)
-    self.k = k
+    self.k = 6
     
   def calculate_violation(self, sol, e_clq):
     total = sum(sol.z[e] for e in e_clq)
