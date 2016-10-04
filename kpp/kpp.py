@@ -56,6 +56,7 @@ class KPPBase(metaclass=ABCMeta):
         print(' Found no constraints to add; exiting cutting plane loop', file=self.out)
         print(' Added a total of', total_added, 'constraints', file=self.out)
         break
+      
     return total_added
 
   def remove_redundant_constraints(self, hard=False, allowed_slack=1e-3):
