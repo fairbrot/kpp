@@ -144,6 +144,14 @@ class KPP(KPPBase):
         self.model.addConstr(self.x[v,i] >= self.x[u,i] + self.y[u,v] - 1.0)
     self.model.update()
 
+  def add_symmetry_breaking_constraints(self):
+    for i in range(self.k-1):
+      sym = LinExpr()
+      for j in range(i+1):
+        sym.addTerms(1.0, self.x[i,j])
+    self.model.addConstr(sym == 1)
+    self.model.update()
+
   def print_solution(self):
     sol = self.get_solution()
     x, y = sol.x, sol.y
@@ -205,6 +213,13 @@ class KPPExtension(KPPBase):
         self.model.addConstr(self.z[u,v] >= self.x[u,i] +  self.x[v,i] - 1.0)
         self.model.addConstr(self.x[u,i] >= self.x[v,i] + self.z[u,v] - 1.0)
         self.model.addConstr(self.x[v,i] >= self.x[u,i] + self.z[u,v] - 1.0)
+
+  def add_symmetry_breaking_constraints(self):
+    for i in range(5):
+      sym = LinExpr()
+      for j in range(i+1):
+        sym.addTerms(1.0, self.x[i,j])
+    self.model.addConstr(sym == 1)
     self.model.update()
 
   def print_solution(self):
