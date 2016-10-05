@@ -153,7 +153,7 @@ class KPP(KPPBase):
 
   def break_symmetry(self):
     if self.verbosity > 0:
-      print("Adding symmetry breaking constraints...")
+      print("Adding symmetry breaking constraints")
     if not self.x: self.add_node_variables()
     for i in range(self.k-1):
       sym = LinExpr()
@@ -226,7 +226,7 @@ class KPPExtension(KPPBase):
 
   def break_symmetry(self):
     if self.verbosity > 0:
-      print("Adding symmetry breaking constraints...")
+      print("Adding symmetry breaking constraints")
     if not self.x: self.add_node_variables()
     self.model.addConstr(self.x[0,0] == 1.0)
     self.model.addConstr(self.x[1,0] + self.x[1,1] + self.x[1,3] == 1.0)

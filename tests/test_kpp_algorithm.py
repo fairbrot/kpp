@@ -14,7 +14,8 @@ params={'preprocess': True,
         'yz_cut_clique_sizes': [7,8],
         'yz_cut_removal':1,
         'z_cut': True,
-        'z_cut_clique_sizes': [8]}
+        'z_cut_clique_sizes': [8],
+        'symmetry_breaking': True}
   
 kpp = KPPAlgorithm(G, **params)
 results = kpp.run()

@@ -96,6 +96,9 @@ class KPPAlgorithm:
       kpp.sep_algs.clear()
 
     kpp.add_node_variables()
+    if self.symmetry_breaking:
+      kpp.break_symmetry()
+
     start=time()
     kpp.solve()
     end=time()
