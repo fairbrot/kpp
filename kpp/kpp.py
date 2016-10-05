@@ -33,9 +33,7 @@ class KPPBase(metaclass=ABCMeta):
       raise RuntimeError('Cutting plan algorithm can only be used before node variables have been added')
 
     if self.verbosity > 0:
-      print(50*'-', file=self.out)
       print('Running cutting plane algorithms', file=self.out)
-      print(50*'-', file=self.out)
 
     it_count=0
     total_added=0
@@ -56,11 +54,13 @@ class KPPBase(metaclass=ABCMeta):
       for constr in new_constraints:
         self.add_constraint(constr)
       if not new_constraints:
-        if self.verbosity > 0:
+        if self.verbosity > 1:
           print(' Found no constraints to add; exiting cutting plane loop', file=self.out)
+        if self.verbosity > 0:
           print(' Added a total of', total_added, 'constraints', file=self.out)
+          print(' Lower bound: ', self.model.objVal)
         break
-      
+
     return total_added
 
   def remove_redundant_constraints(self, hard=False, allowed_slack=1e-3):
@@ -80,9 +80,9 @@ class KPPBase(metaclass=ABCMeta):
       self.constraints.remove(constr)
     
     if self.verbosity > 0:
-      print("Removed", slack, "constraints with slack greater than", allowed_slack, file=self.out)
-      print("Removed", dual, "constraints with zero dual variable", file=self.out)
-      print(len(self.constraints), "constraints remaining", file=self.out)
+      print(" Removed", slack, "constraints with slack greater than", allowed_slack, file=self.out)
+      print(" Removed", dual, "constraints with zero dual variable", file=self.out)
+      print("", len(self.constraints), "constraints remaining", file=self.out)
 
     self.model.update()
     return slack+dual
@@ -113,7 +113,7 @@ class KPPBase(metaclass=ABCMeta):
       print("Running branch-and-bound", file=self.out)
     self.model.optimize()
     if self.verbosity > 0:
-      print("Optimal objective value: ", self.model.objVal, file=self.out)
+      print(" Optimal objective value: ", self.model.objVal, file=self.out)
 
   @abstractmethod
   def add_node_variables(self):

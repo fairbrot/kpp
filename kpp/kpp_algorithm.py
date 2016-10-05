@@ -20,10 +20,14 @@ class KPPAlgorithm:
     self.z_cut = kwargs.pop('z_cut', False)
     self.z_cut_clique_sizes = kwargs.pop('z_cut_clique_sizes', [])
     self.symmetry_breaking = kwargs.pop('symmetry_breaking', False)
+    self.verbosity = kwargs.pop('verbosity', 1)
     if kwargs:
         raise ValueError("Invalid arguments passed to constructor: %o" % kwargs.keys())
 
   def run(self):
+    if self.verbosity > 1:
+      print('Solving KPP Modulo-6 Extension Problem')
+      print('Input graph has %d nodes and %d edges' % (self.G.vcount(), self.G.ecount()))
     if self.preprocess:
       start=time()
       graphs=decompose_graph(self.G, 3)
@@ -33,7 +37,14 @@ class KPPAlgorithm:
       self.output['largest_components'] = max(g.vcount() for g in graphs)
       self.output['solution'] = dict()
 
-      for g in graphs:
+      if self.verbosity:
+        print('Graph preprocessing yields %d components' % len(graphs))
+      
+      for i,g in enumerate(graphs):
+        if self.verbosity > 0:
+          print(25*'-')
+          print('Solving for component %d' % i)
+          print(25*'-')
         res = self.solve_single_problem(g)
         if not self.output['solution']:
           for k,val in res.items():
@@ -49,6 +60,7 @@ class KPPAlgorithm:
     return self.output
                     
   def solve_single_problem(self, g):
+    if self.verbosity > 0: print("Running exact solution algorithm")
     results=dict()
     kpp=KPPExtension(g)
     if self.y_cut or self.yz_cut or self.z_cut:
@@ -87,9 +99,7 @@ class KPPAlgorithm:
     start=time()
     kpp.solve()
     end=time()
+    if self.verbosity > 0: print('')
     results["brand_and_bound_time"]=end-start
     results["optimal value"] = kpp.model.objVal
     return results
-
-            
-        
