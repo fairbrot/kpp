@@ -71,12 +71,13 @@ class CliqueSeparator(metaclass=ABCMeta):
   def clique_constraint(self, e_clq):
     pass
 
-  def find_violated_constraints(self, sol):
+  def find_violated_constraints(self, sol, verbosity=1):
     cons=[]
     viol_edge_cliques=self.find_violated_cliques(sol)
     num_viol=len(viol_edge_cliques)
     to_add=min(num_viol, self.max_constraints)
-    print(" Adding {}/{} violated {}-cliques".format(to_add, num_viol, self.p), file=self.out)
+    if verbosity > 0:
+      print(" Adding {}/{} violated {}-cliques".format(to_add, num_viol, self.p), file=self.out)
     if to_add < num_viol:
       viol_edge_cliques = heapq.nlargest(to_add, viol_edge_cliques,key=lambda s:s[1])
     for e_clq, viol in viol_edge_cliques:

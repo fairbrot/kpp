@@ -6,7 +6,7 @@ import igraph as ig
 from .separation import *
 
 class KPPBase(metaclass=ABCMeta):
-  def __init__(self, G):
+  def __init__(self, G, verbosity=1):
     self.G=G
     self.model=Model()
     self.model.modelSense=GRB.MINIMIZE
@@ -21,6 +21,7 @@ class KPPBase(metaclass=ABCMeta):
     self.constraints=[]
     self.sep_algs=[]
     self.out = sys.stdout
+    self.verbosity=verbosity
 
   def get_solution(self):
     return Solution(self.model.getAttr('x', self.x), 
@@ -31,30 +32,33 @@ class KPPBase(metaclass=ABCMeta):
     if self.x:
       raise RuntimeError('Cutting plan algorithm can only be used before node variables have been added')
 
-    print(50*'-', file=self.out)
-    print('Running cutting plane algorithms', file=self.out)
-    print(50*'-', file=self.out)
+    if self.verbosity > 0:
+      print(50*'-', file=self.out)
+      print('Running cutting plane algorithms', file=self.out)
+      print(50*'-', file=self.out)
 
     it_count=0
     total_added=0
     while True:
       it_count+=1
-      print('\n', 10*'-', 'Iteration ', it_count,
-            10*'-', file=self.out)
       self.model.optimize()
-      print(" Objective value: ", self.model.objVal, file=self.out)
+      if self.verbosity > 1:
+        print('\n', 10*'-', 'Iteration ', it_count,
+              10*'-', file=self.out)
+        print(" Objective value: ", self.model.objVal, file=self.out)
       new_constraints=[]
       sol = self.get_solution()
       for sep_alg in self.sep_algs:
-        constr_list=sep_alg.find_violated_constraints(sol)
+        constr_list=sep_alg.find_violated_constraints(sol, self.verbosity-1)
         new_constraints.extend(constr_list)
         
       total_added+=len(new_constraints)
       for constr in new_constraints:
         self.add_constraint(constr)
       if not new_constraints:
-        print(' Found no constraints to add; exiting cutting plane loop', file=self.out)
-        print(' Added a total of', total_added, 'constraints', file=self.out)
+        if self.verbosity > 0:
+          print(' Found no constraints to add; exiting cutting plane loop', file=self.out)
+          print(' Added a total of', total_added, 'constraints', file=self.out)
         break
       
     return total_added
@@ -74,10 +78,11 @@ class KPPBase(metaclass=ABCMeta):
     for constr in to_remove:
       self.model.remove(constr)
       self.constraints.remove(constr)
-        
-    print("Removed", slack, "constraints with slack greater than", allowed_slack, file=self.out)
-    print("Removed", dual, "constraints with zero dual variable", file=self.out)
-    print(len(self.constraints), "constraints remaining", file=self.out)
+    
+    if self.verbosity > 0:
+      print("Removed", slack, "constraints with slack greater than", allowed_slack, file=self.out)
+      print("Removed", dual, "constraints with zero dual variable", file=self.out)
+      print(len(self.constraints), "constraints remaining", file=self.out)
 
     self.model.update()
     return slack+dual
@@ -103,10 +108,12 @@ class KPPBase(metaclass=ABCMeta):
 
   def solve(self):
     n = self.G.vcount()
-    print("Solving k-partition problem", file=self.out)
     if not self.x: self.add_node_variables()
+    if self.verbosity > 0:
+      print("Running branch-and-bound", file=self.out)
     self.model.optimize()
-    print("Optimal objective value: ", self.model.objVal, file=self.out)
+    if self.verbosity > 0:
+      print("Optimal objective value: ", self.model.objVal, file=self.out)
 
   @abstractmethod
   def add_node_variables(self):
@@ -117,8 +124,8 @@ class KPPBase(metaclass=ABCMeta):
     pass
 
 class KPP(KPPBase):
-  def __init__(self, G, k):
-    KPPBase.__init__(self, G)
+  def __init__(self, G, k, verbosity=1):
+    KPPBase.__init__(self, G, verbosity)
     self.k=k
 
   def add_node_variables(self):
@@ -145,6 +152,8 @@ class KPP(KPPBase):
     self.model.update()
 
   def break_symmetry(self):
+    if self.verbosity > 0:
+      print("Adding symmetry breaking constraints...")
     if not self.x: self.add_node_variables()
     for i in range(self.k-1):
       sym = LinExpr()
@@ -175,8 +184,8 @@ class KPP(KPPBase):
     print('\n', file=self.out)
 
 class KPPExtension(KPPBase):
-  def __init__(self, G):
-    KPPBase.__init__(self, G)
+  def __init__(self, G, verbosity=1):
+    KPPBase.__init__(self, G, verbosity)
     self.k1 = 3
     self.k2 = 6
     
@@ -184,7 +193,7 @@ class KPPExtension(KPPBase):
     for e in self.G.es():
       u = min(e.source, e.target)
       v = max(e.source, e.target)
-      self.z[u,v] = self.model.addVar(obj=1.0,ub=1.0)
+      self.z[u,v] = self.model.addVar(obj=1.0, ub=1.0)
 
   def add_node_variables(self):
     if not self.z: self.add_z_variables()
@@ -216,19 +225,13 @@ class KPPExtension(KPPBase):
         self.model.addConstr(self.x[v,i] >= self.x[u,i] + self.z[u,v] - 1.0)
 
   def break_symmetry(self):
-    if not self.x: self.add_node_variables()
-    for i in range(5):
-      sym = LinExpr()
-      for j in range(i+1):
-        sym.addTerms(1.0, self.x[i,j])
-    self.model.addConstr(sym == 1)
-    self.model.update()
-
-  def alternative_break_symmetry(self):
+    if self.verbosity > 0:
+      print("Adding symmetry breaking constraints...")
     if not self.x: self.add_node_variables()
     self.model.addConstr(self.x[0,0] == 1.0)
     self.model.addConstr(self.x[1,0] + self.x[1,1] + self.x[1,3] == 1.0)
     self.model.addConstr(self.x[2,5]==0.0)
+    self.model.update()
 
   def print_solution(self):
     sol = self.get_solution()
