@@ -7,15 +7,15 @@ seed(1)
 
 G = ig.Graph.GRG(100, 0.15)
 params={'preprocess': True,
-        'y_cut': True,
-        'y_cut_clique_sizes': [4,5,7],
-        'y_cut_removal':1,
-        'yz_cut': True,
-        'yz_cut_clique_sizes': [7,8],
-        'yz_cut_removal':1,
-        'z_cut': True,
-        'z_cut_clique_sizes': [8],
-        'symmetry_breaking': True}
+        'y-cut': True,
+        'y-cut clique sizes': [4,5,7],
+        'y-cut removal':1,
+        'yz-cut': True,
+        'yz-cut clique sizes': [7,8],
+        'yz-cut removal':1,
+        'z-cut': True,
+        'z-cut clique sizes': [8],
+        'symmetry breaking': True}
   
 kpp = KPPAlgorithm(G, **params)
 results = kpp.run()
