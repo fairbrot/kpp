@@ -78,7 +78,8 @@ class KPPAlgorithm:
       if self.y_cut_removal:
         results["y-cut constraints removed"] = kpp.remove_redundant_constraints(hard=(self.y_cut_removal>1))
       kpp.sep_algs.clear()
-                
+
+    kpp.add_z_variables()
     if self.yz_cut or self.z_cut:
       if self.yz_cut:
         for p in self.yz_cut_clique_sizes:
