@@ -103,6 +103,6 @@ class KPPAlgorithm:
     kpp.solve()
     end=time()
     if self.verbosity > 0: print('')
-    results["brand and bound time"]=end-start
+    results["branch and bound time"]=end-start
     results["optimal value"] = kpp.model.objVal
     return results
