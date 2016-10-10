@@ -91,9 +91,9 @@ class KPPAlgorithm:
       kpp.cut()
       end=time()
       results["yz-cut time"] = end-start
+      results["yz-cut lb"] = kpp.model.objVal
       if self.yz_cut_removal:
         results["yz-cut constraints removed"] = kpp.remove_redundant_constraints(hard=(self.yz_cut_removal>1))
-      results["yz-cut lb"] = kpp.model.objVal
       kpp.sep_algs.clear()
 
     kpp.add_node_variables()
