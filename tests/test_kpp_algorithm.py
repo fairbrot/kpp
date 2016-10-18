@@ -17,6 +17,6 @@ params={'preprocess': True,
         'z-cut clique sizes': [8],
         'symmetry breaking': True}
   
-kpp = KPPAlgorithm(G, **params)
+kpp = KPPAlgorithm(G, 3, **params)
 results = kpp.run()
 print(yaml.dump(results, indent=1))

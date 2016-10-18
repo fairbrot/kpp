@@ -57,7 +57,7 @@ class TestKPPExtension(unittest.TestCase):
     cls.G = ig.Graph.GRG(14, 0.6)
     cls.max_cliques = cls.G.maximal_cliques()
     print(cls.max_cliques)
-    plain_kpp = KPPExtension(cls.G, verbosity=0)
+    plain_kpp = KPPExtension(cls.G, 3, verbosity=0)
     plain_kpp.solve()
     cls.obj_val = plain_kpp.model.objVal
 
@@ -66,11 +66,11 @@ class TestKPPExtension(unittest.TestCase):
 
   def test_cuts(self):
     print("\ttest_cuts...")
-    cuts_kpp = KPPExtension(self.G, verbosity=0)
+    cuts_kpp = KPPExtension(self.G, 3, verbosity=0)
     y_sep_alg_1 = YCliqueSeparator(self.max_cliques, 4, 3)
     y_sep_alg_2 = YCliqueSeparator(self.max_cliques, 5, 3)
-    yz_sep_alg = YZCliqueSeparator(self.max_cliques, 7)
-    z_sep_alg = ZCliqueSeparator(self.max_cliques, 8)
+    yz_sep_alg = YZCliqueSeparator(self.max_cliques, 7, 3)
+    z_sep_alg = ZCliqueSeparator(self.max_cliques, 8, 3)
     cuts_kpp.add_separator(y_sep_alg_1)
     cuts_kpp.add_separator(y_sep_alg_2)
     cuts_kpp.cut()
@@ -85,7 +85,7 @@ class TestKPPExtension(unittest.TestCase):
 
   def test_break_symmetry(self):
     print("\ttest_break_symmetry...")
-    sym_kpp = KPPExtension(self.G, verbosity=0)
+    sym_kpp = KPPExtension(self.G, 3, verbosity=0)
     sym_kpp.break_symmetry()
     sym_kpp.solve()
     obj_val = sym_kpp.model.objVal
@@ -93,11 +93,11 @@ class TestKPPExtension(unittest.TestCase):
 
   def test_cuts_and_break_symmetry(self):
     print("\ttest_cuts_and_break_symmetry...")
-    kpp = KPPExtension(self.G, verbosity=0)
+    kpp = KPPExtension(self.G, 3, verbosity=0)
     y_sep_alg_1 = YCliqueSeparator(self.max_cliques, 4, 3)
     y_sep_alg_2 = YCliqueSeparator(self.max_cliques, 5, 3)
-    yz_sep_alg = YZCliqueSeparator(self.max_cliques, 7)
-    z_sep_alg = ZCliqueSeparator(self.max_cliques, 8)
+    yz_sep_alg = YZCliqueSeparator(self.max_cliques, 7, 3)
+    z_sep_alg = ZCliqueSeparator(self.max_cliques, 8, 3)
     kpp.add_separator(y_sep_alg_1)
     kpp.add_separator(y_sep_alg_2)
     kpp.cut()

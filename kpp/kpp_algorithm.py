@@ -7,9 +7,10 @@ from .separation import *
 from .graph import decompose_graph
 
 class KPPAlgorithm:
-  def __init__(self, G, **kwargs):
+  def __init__(self, G, k, **kwargs):
     self.output = dict()
     self.G = G
+    self.k = k
     self.preprocess = kwargs.pop('preprocess', False)
     self.y_cut = kwargs.pop('y-cut', False)
     self.y_cut_clique_sizes = kwargs.pop('y-cut clique sizes', [])
@@ -30,7 +31,7 @@ class KPPAlgorithm:
       print('Input graph has %d nodes and %d edges' % (self.G.vcount(), self.G.ecount()))
     if self.preprocess:
       start=time()
-      graphs=decompose_graph(self.G, 3)
+      graphs=decompose_graph(self.G, self.k)
       end=time()
       self.output['preprocess time'] = end-start
       self.output['preprocess components'] = len(graphs)
@@ -62,14 +63,14 @@ class KPPAlgorithm:
   def solve_single_problem(self, g):
     if self.verbosity > 0: print("Running exact solution algorithm")
     results=dict()
-    kpp=KPPExtension(g)
+    kpp=KPPExtension(g, self.k)
     if self.y_cut or self.yz_cut or self.z_cut:
       max_cliques=g.maximal_cliques()
-      results["max clique size"] = max(len(nodes) for nodes in max_cliques)
+      results["clique number"] = max(len(nodes) for nodes in max_cliques)
             
     if self.y_cut:
       for p in self.y_cut_clique_sizes:
-        kpp.add_separator(YCliqueSeparator(max_cliques, p, 3))
+        kpp.add_separator(YCliqueSeparator(max_cliques, p, self.k))
       start=time()
       kpp.cut()
       end=time()
@@ -83,10 +84,10 @@ class KPPAlgorithm:
     if self.yz_cut or self.z_cut:
       if self.yz_cut:
         for p in self.yz_cut_clique_sizes:
-          kpp.add_separator(YZCliqueSeparator(max_cliques, p))
+          kpp.add_separator(YZCliqueSeparator(max_cliques, p, self.k))
       if self.z_cut:
         for p in self.z_cut_clique_sizes:
-          kpp.add_separator(ZCliqueSeparator(max_cliques, p))
+          kpp.add_separator(ZCliqueSeparator(max_cliques, p, self.k))
       start=time()
       kpp.cut()
       end=time()

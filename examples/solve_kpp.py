@@ -24,10 +24,10 @@ k = 3
 max_cliques = G.maximal_cliques()
 y_sep_alg_1 = YCliqueSeparator(max_cliques, 4, 3)
 y_sep_alg_2 = YCliqueSeparator(max_cliques, 5, 3)
-yz_sep_alg = YZCliqueSeparator(max_cliques, 7)
-z_sep_alg = ZCliqueSeparator(max_cliques, 8)
+yz_sep_alg = YZCliqueSeparator(max_cliques, 7, 3)
+z_sep_alg = ZCliqueSeparator(max_cliques, 8, 3)
 
-kpp_extension = KPPExtension(G)
+kpp_extension = KPPExtension(G, 3)
 kpp_extension.add_separator(y_sep_alg_1)
 kpp_extension.add_separator(y_sep_alg_2)
 kpp_extension.cut()

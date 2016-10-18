@@ -6,10 +6,11 @@ import igraph as ig
 from .separation import *
 
 class KPPBase(metaclass=ABCMeta):
-  def __init__(self, G, verbosity=1):
+  def __init__(self, G, k, verbosity=1):
     self.G=G
     self.model=Model()
     self.model.modelSense=GRB.MINIMIZE
+    self.k = k
     self.y={}
     self.model.setParam("OutputFlag", 0)
     for e in self.G.es():
@@ -125,8 +126,7 @@ class KPPBase(metaclass=ABCMeta):
 
 class KPP(KPPBase):
   def __init__(self, G, k, verbosity=1):
-    KPPBase.__init__(self, G, verbosity)
-    self.k=k
+    KPPBase.__init__(self, G, k, verbosity)
 
   def add_node_variables(self):
     n=self.G.vcount()
@@ -184,10 +184,8 @@ class KPP(KPPBase):
     print('\n', file=self.out)
 
 class KPPExtension(KPPBase):
-  def __init__(self, G, verbosity=1):
-    KPPBase.__init__(self, G, verbosity)
-    self.k1 = 3
-    self.k2 = 6
+  def __init__(self, G, k, verbosity=1):
+    KPPBase.__init__(self, G, k, verbosity)
     
   def add_z_variables(self):
     for e in self.G.es():
@@ -199,39 +197,51 @@ class KPPExtension(KPPBase):
     if not self.z: self.add_z_variables()
     n=self.G.vcount()
     for i in range(n):
-      for j in range(self.k2):
+      for j in range(2*self.k):
         self.x[i,j] = self.model.addVar(vtype=GRB.BINARY)
         
     self.model.update()
 
     for i in range(n):
       total_assign = LinExpr()
-      for j in range(self.k2):
+      for j in range(2*self.k):
         total_assign.addTerms(1.0, self.x[i,j])
       self.model.addConstr(total_assign == 1.0)
 
     for e in self.G.es():
       u = min(e.source, e.target)
       v = max(e.source, e.target)
-      for i in range(self.k1):
-        self.model.addConstr(self.y[u,v] >= self.x[u,i] + self.x[u,i+self.k1] + self.x[v,i] + self.x[v,i+self.k1] - 1.0)
+      for c in range(self.k):
+        self.model.addConstr(self.y[u,v] >= self.x[u,c] + self.x[u,c+self.k] + self.x[v,c] + self.x[v,c+self.k] - 1.0)
 
     for e in self.G.es():
       u = min(e.source, e.target)
       v = max(e.source, e.target)
-      for i in range(self.k2):
-        self.model.addConstr(self.z[u,v] >= self.x[u,i] +  self.x[v,i] - 1.0)
-        self.model.addConstr(self.x[u,i] >= self.x[v,i] + self.z[u,v] - 1.0)
-        self.model.addConstr(self.x[v,i] >= self.x[u,i] + self.z[u,v] - 1.0)
+      for c in range(2*self.k):
+        self.model.addConstr(self.z[u,v] >= self.x[u,c] + self.x[v,c] - 1.0)
+        self.model.addConstr(self.x[u,c] >= self.x[v,c] + self.z[u,v] - 1.0)
+        self.model.addConstr(self.x[v,c] >= self.x[u,c] + self.z[u,v] - 1.0)
 
   def break_symmetry(self):
-    if self.verbosity > 0:
-      print("Adding symmetry breaking constraints")
-    if not self.x: self.add_node_variables()
-    self.model.addConstr(self.x[0,0] == 1.0)
-    self.model.addConstr(self.x[1,0] + self.x[1,1] + self.x[1,3] == 1.0)
-    self.model.addConstr(self.x[2,5]==0.0)
-    self.model.update()
+    if not self.G.vcount() > 2*self.k:
+      if self.verbosity > 0:
+        print('Too few nodes to add symmetry breaking constraints')
+    else:
+      if self.verbosity > 0:
+        print("Adding symmetry breaking constraints")
+      if not self.x: self.add_node_variables()
+      for i in range(self.k):
+        expr = LinExpr()
+        for c in range(i+1): 
+          expr.addTerms(1.0, self.x[i,c])
+        for c in range(self.k,self.k+i): 
+          expr.addTerms(1.0, self.x[i,c])
+
+    # self.model.addConstr(self.x[0,0] == 1.0)
+    # self.model.addConstr(self.x[1,0] + self.x[1,1] + self.x[1,3] == 1.0)
+    # #self.model.addConstr(self.x[2,0] + self.x[2,1] + self.x[2,2] + self.x[2,3] + self.x[2,4] == 1.0)    
+    # self.model.addConstr(self.x[2,5]==0.0)
+    # self.model.update()
 
   def print_solution(self):
     sol = self.get_solution()
@@ -239,13 +249,13 @@ class KPPExtension(KPPBase):
     clusters = []
     n = self.G.vcount()
     if x:
-      for i in range(self.k2):
+      for c in range(2*self.k):
         cluster = []
         for j in range(n):
-          if abs(x[j,i] - 1.0) < 1e-4:
+          if abs(x[j,c] - 1.0) < 1e-4:
             cluster.append(j)
         clusters.append(cluster)
-      for i in range(self.k2):
+      for i in range(2*self.k):
         print("Colour", i,": ", clusters[i], file=self.out)
 
     print("3-Clashes: ")

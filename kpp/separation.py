@@ -48,11 +48,12 @@ def p_edge_cliques(max_cliques, p):
   return edge_cliques
 
 class CliqueSeparator(metaclass=ABCMeta):
-  def __init__(self, max_cliques, p):
+  def __init__(self, max_cliques, p, k):
     self.max_constraints=10
     self.out=sys.stdout
     self.eps=1e-3
-    self.edge_cliques=p_edge_cliques(max_cliques,p)
+    self.edge_cliques=p_edge_cliques(max_cliques, p)
+    self.k = k
     self.p = p # Clique size
 
   @abstractmethod
@@ -86,8 +87,7 @@ class CliqueSeparator(metaclass=ABCMeta):
 
 class YCliqueSeparator(CliqueSeparator):
   def __init__(self, max_cliques, p, k):
-    CliqueSeparator.__init__(self, max_cliques, p)
-    self.k = k
+    CliqueSeparator.__init__(self, max_cliques, p, k)
     
   def calculate_violation(self, sol, e_clq):
     total = sum(sol.y[e] for e in e_clq)
@@ -97,25 +97,23 @@ class YCliqueSeparator(CliqueSeparator):
     return Constraint({}, {e:1.0 for e in e_clq}, {}, clique_rhs(self.p, self.k), '>')
 
 class ZCliqueSeparator(CliqueSeparator):
-  def __init__(self, max_cliques, p):
-    CliqueSeparator.__init__(self, max_cliques, p)
-    self.k = 6
+  def __init__(self, max_cliques, p, k):
+    CliqueSeparator.__init__(self, max_cliques, p, k)
     
   def calculate_violation(self, sol, e_clq):
     total = sum(sol.z[e] for e in e_clq)
-    return clique_rhs(self.p, self.k) - total
+    return clique_rhs(self.p, 2*self.k) - total
 
   def clique_constraint(self, e_clq):
-    return Constraint({}, {}, {e:1.0 for e in e_clq}, clique_rhs(self.p, self.k),'>')
+    return Constraint({}, {}, {e:1.0 for e in e_clq}, clique_rhs(self.p, 2*self.k),'>')
 
 
 class YZCliqueSeparator(CliqueSeparator):
-  def __init__(self, max_cliques, p):
-    CliqueSeparator.__init__(self, max_cliques, p)
+  def __init__(self, max_cliques, p, k):
+    CliqueSeparator.__init__(self, max_cliques, p, k)
 
   def calculate_violation(self, sol, e_clq):
     lhs = 0.5*sum(sol.y[e] for e in e_clq) - sum(sol.z[e] for e in e_clq)
-
     return lhs - yz_clique_rhs(self.p)
 
   def clique_constraint(self, e_clq):
