@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 import sys
 from time import time
+import numpy as np
 import igraph as ig
 from .kpp import KPPExtension
 from .separation import *
@@ -108,5 +109,9 @@ class KPPAlgorithm:
     if results["status"] == 2:
       results["optimal value"] = kpp.model.objVal
       results["branch and bound time"] = kpp.model.Runtime
+    else: 
+      results["optimal value"] = np.NaN
+      results["branch and bound time"] = np.NaN
+
     results["branch and bound nodes"] = kpp.model.NodeCount
     return results
