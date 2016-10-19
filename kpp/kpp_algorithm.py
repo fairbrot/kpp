@@ -92,7 +92,7 @@ class KPPAlgorithm:
       results['phase 2 constraints added'] = kpp.cut()
       end=time()
       results['phase 2 time'] = end-start
-      results['yz-cut lb'] = kpp.model.objVal
+      results['phase 2 lb'] = kpp.model.objVal
       if self.params['phase 2 removal']:
         results["phase 2 constraints removed"] = kpp.remove_redundant_constraints(hard=(self.params['phase 2 removal']))
       kpp.sep_algs.clear()
