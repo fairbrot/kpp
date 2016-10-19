@@ -64,6 +64,7 @@ class KPPAlgorithm:
       print("Running exact solution algorithm")
     results=dict()
     kpp=KPPExtension(g, self.k)
+    for (key,val) in self.gurobi_params.items(): kpp.model.setParam(key, val)
     if self.params['y-cut'] or self.params['yz-cut'] or self.params['z-cut']:
       max_cliques=g.maximal_cliques()
       results["clique number"] = max(len(nodes) for nodes in max_cliques)

@@ -12,7 +12,8 @@ params={'preprocess': True,
         'yz-cut': [7,8],
         'phase 2 removal':1,
         'z-cut': [8],
-        'symmetry breaking': True}
+        'symmetry breaking': True,
+        'MIPFocus': 1}
   
 kpp = KPPAlgorithm(G, 3, **params)
 results = kpp.run()
