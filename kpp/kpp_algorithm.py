@@ -100,10 +100,13 @@ class KPPAlgorithm:
     if self.params['symmetry breaking']:
       kpp.break_symmetry()
 
-    start=time()
     kpp.solve()
-    end=time()
     if self.verbosity > 0: print('')
-    results["branch and bound time"] = end-start
-    results["optimal value"] = kpp.model.objVal
+
+    results["optimality gap"] = kpp.model.MIPGap
+    results["status"] = kpp.model.Status
+    if results["status"] == 2:
+      results["optimal value"] = kpp.model.objVal
+      results["branch and bound time"] = kpp.model.Runtime
+    results["branch and bound nodes"] = kpp.model.NodeCount
     return results
