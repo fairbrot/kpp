@@ -11,25 +11,24 @@ class KPPAlgorithm:
     self.output = dict()
     self.G = G
     self.k = k
-    self.preprocess = kwargs.pop('preprocess', False)
-    self.y_cut = kwargs.pop('y-cut', False)
-    self.y_cut_clique_sizes = kwargs.pop('y-cut clique sizes', [])
-    self.y_cut_removal = kwargs.pop('y-cut removal', 0)
-    self.yz_cut = kwargs.pop('yz-cut', False)
-    self.yz_cut_clique_sizes = kwargs.pop('yz-cut clique sizes', [])
-    self.yz_cut_removal = kwargs.pop('yz-cut removal', 0)
-    self.z_cut = kwargs.pop('z-cut', False)
-    self.z_cut_clique_sizes = kwargs.pop('z-cut clique sizes', [])
-    self.symmetry_breaking = kwargs.pop('symmetry breaking', False)
+    self.params = dict()
+    self.params['preprocess'] = kwargs.pop('preprocess', False)
+    self.params['y-cut'] = kwargs.pop('y-cut', [])
+    self.params['phase 1 removal'] = kwargs.pop('phase 1 removal', 0)
+    self.params['yz-cut'] = kwargs.pop('yz-cut', [])
+    self.params['phase 2 removal'] = kwargs.pop('phase 2 removal', 0)
+    self.params['z-cut'] = kwargs.pop('z-cut', [])
+    self.params['symmetry breaking']  = kwargs.pop('symmetry breaking', False)
     self.verbosity = kwargs.pop('verbosity', 1)
-    if kwargs:
-        raise ValueError("Invalid arguments passed to constructor: %o" % kwargs.keys())
+
+    # Gurobi parameters
+    self.gurobi_params = kwargs
 
   def run(self):
     if self.verbosity > 1:
       print('Solving KPP Modulo-6 Extension Problem')
       print('Input graph has %d nodes and %d edges' % (self.G.vcount(), self.G.ecount()))
-    if self.preprocess:
+    if self.params['preprocess']:
       start=time()
       graphs=decompose_graph(self.G, self.k)
       end=time()
@@ -61,50 +60,49 @@ class KPPAlgorithm:
     return self.output
                     
   def solve_single_problem(self, g):
-    if self.verbosity > 0: print("Running exact solution algorithm")
+    if self.verbosity > 0: 
+      print("Running exact solution algorithm")
     results=dict()
     kpp=KPPExtension(g, self.k)
-    if self.y_cut or self.yz_cut or self.z_cut:
+    if self.params['y-cut'] or self.params['yz-cut'] or self.params['z-cut']:
       max_cliques=g.maximal_cliques()
       results["clique number"] = max(len(nodes) for nodes in max_cliques)
             
-    if self.y_cut:
-      for p in self.y_cut_clique_sizes:
+    if self.params['y-cut']:
+      for p in self.params['y-cut']:
         kpp.add_separator(YCliqueSeparator(max_cliques, p, self.k))
       start=time()
-      kpp.cut()
+      results['phase 1 constraints added'] = kpp.cut()
       end=time()
-      results["y-cut time"] = end-start
-      results["y-cut lb"] = kpp.model.objVal
-      if self.y_cut_removal:
-        results["y-cut constraints removed"] = kpp.remove_redundant_constraints(hard=(self.y_cut_removal>1))
+      results['phase 1 time'] = end-start
+      results['phase 1 lb'] = kpp.model.objVal
+      if self.params['phase 1 removal']:
+        results["phase 1 constraints removed"] = kpp.remove_redundant_constraints(hard=(self.params['phase 1 removal'] > 1))
       kpp.sep_algs.clear()
 
     kpp.add_z_variables()
-    if self.yz_cut or self.z_cut:
-      if self.yz_cut:
-        for p in self.yz_cut_clique_sizes:
+    if self.params['yz-cut'] or self.params['z-cut']:
+      for p in self.params['yz-cut']:
           kpp.add_separator(YZCliqueSeparator(max_cliques, p, self.k))
-      if self.z_cut:
-        for p in self.z_cut_clique_sizes:
+      for p in self.params['z-cut']:
           kpp.add_separator(ZCliqueSeparator(max_cliques, p, self.k))
       start=time()
-      kpp.cut()
+      results['phase 2 constraints added'] = kpp.cut()
       end=time()
-      results["yz-cut time"] = end-start
-      results["yz-cut lb"] = kpp.model.objVal
-      if self.yz_cut_removal:
-        results["yz-cut constraints removed"] = kpp.remove_redundant_constraints(hard=(self.yz_cut_removal>1))
+      results['phase 2 time'] = end-start
+      results['yz-cut lb'] = kpp.model.objVal
+      if self.params['phase 2 removal']:
+        results["phase 2 constraints removed"] = kpp.remove_redundant_constraints(hard=(self.params['phase 2 removal']))
       kpp.sep_algs.clear()
 
     kpp.add_node_variables()
-    if self.symmetry_breaking:
+    if self.params['symmetry breaking']:
       kpp.break_symmetry()
 
     start=time()
     kpp.solve()
     end=time()
     if self.verbosity > 0: print('')
-    results["branch and bound time"]=end-start
+    results["branch and bound time"] = end-start
     results["optimal value"] = kpp.model.objVal
     return results
