@@ -113,5 +113,5 @@ class KPPAlgorithm:
       results["optimal value"] = np.NaN
       results["branch and bound time"] = np.NaN
 
-    results["branch and bound nodes"] = kpp.model.NodeCount
+    results["branch and bound nodes"] = int(kpp.model.NodeCount)
     return results
