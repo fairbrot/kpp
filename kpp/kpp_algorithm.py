@@ -20,7 +20,7 @@ class KPPAlgorithm:
     self.params['phase 2 removal'] = kwargs.pop('phase 2 removal', 0)
     self.params['z-cut'] = kwargs.pop('z-cut', [])
     self.params['symmetry breaking']  = kwargs.pop('symmetry breaking', False)
-    self.params['fractional y-cut'] = kwargs.pop('fractional y-cut')
+    self.params['fractional y-cut'] = kwargs.pop('fractional y-cut', False)
 
     self.verbosity = kwargs.pop('verbosity', 1)
 
