@@ -5,7 +5,7 @@ from kpp import KPP, KPPExtension, YCliqueSeparator, ZCliqueSeparator, YZCliqueS
 
 seed(1)
 
-G = ig.Graph.GRG(100, 0.15)
+G = ig.Graph.GRG(50, 0.2)
 params={'preprocess': True,
         'y-cut': [4,5,7],
         'phase 1 removal':1,
@@ -13,8 +13,9 @@ params={'preprocess': True,
         'phase 2 removal':1,
         'z-cut': [8],
         'symmetry breaking': True,
+        'fractional y-cut': False,
         'MIPFocus': 1}
   
-kpp = KPPAlgorithm(G, 3, **params)
+kpp = KPPAlgorithm(G, 3, verbosity=1, **params)
 results = kpp.run()
 print(yaml.dump(results, indent=1))

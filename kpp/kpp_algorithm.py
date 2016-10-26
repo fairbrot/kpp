@@ -20,6 +20,8 @@ class KPPAlgorithm:
     self.params['phase 2 removal'] = kwargs.pop('phase 2 removal', 0)
     self.params['z-cut'] = kwargs.pop('z-cut', [])
     self.params['symmetry breaking']  = kwargs.pop('symmetry breaking', False)
+    self.params['fractional y-cut'] = kwargs.pop('fractional y-cut')
+
     self.verbosity = kwargs.pop('verbosity', 1)
 
     # Gurobi parameters
@@ -64,7 +66,7 @@ class KPPAlgorithm:
     if self.verbosity > 0: 
       print("Running exact solution algorithm")
     results=dict()
-    kpp=KPPExtension(g, self.k)
+    kpp=KPPExtension(g, self.k, verbosity=self.verbosity)
     for (key,val) in self.gurobi_params.items(): kpp.model.setParam(key, val)
     if self.params['y-cut'] or self.params['yz-cut'] or self.params['z-cut']:
       max_cliques=g.maximal_cliques()
@@ -78,9 +80,19 @@ class KPPAlgorithm:
       end=time()
       results['phase 1 time'] = end-start
       results['phase 1 lb'] = kpp.model.objVal
+
+      if self.params['fractional y-cut']:
+        res = kpp.add_fractional_cut()
+        if self.verbosity > 0:
+          if res:
+            print(" Added fractional y-cut")
+          else:
+            print(" Fractional y-cut not appropriate")
+
       if self.params['phase 1 removal']:
         results["phase 1 constraints removed"] = kpp.remove_redundant_constraints(hard=(self.params['phase 1 removal'] > 1))
       kpp.sep_algs.clear()
+
 
     kpp.add_z_variables()
     if self.params['yz-cut'] or self.params['z-cut']:

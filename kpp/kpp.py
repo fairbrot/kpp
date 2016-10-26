@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import sys
+from math import ceil
 from gurobipy import *
 import igraph as ig
 
@@ -28,7 +29,23 @@ class KPPBase(metaclass=ABCMeta):
     return Solution(self.model.getAttr('x', self.x), 
                     self.model.getAttr('x', self.y),
                     self.model.getAttr('x', self.z))
-
+  
+  def add_fractional_cut(self):
+    if self.x or self.z:
+      raise RuntimeError('Fractional y-cut can only be added before x and z variables have been added')
+    if not self.model.status == 2:
+      raise RuntimeError('Fractional y-cut can only be added after successful cutting plane phase')
+    lb = self.model.objVal
+    eps=self.model.params.optimalityTol
+    if abs(round(lb) - lb) > eps:
+      sum_y = LinExpr()
+      for e in self.G.es():
+        u = min(e.source, e.target)
+        v = max(e.source, e.target)
+        sum_y.addTerms(1.0, self.y[u,v])
+      self.model.addConstr(sum_y >= ceil(lb))
+      return True
+  
   def cut(self):
     if self.x:
       raise RuntimeError('Cutting plan algorithm can only be used before node variables have been added')
