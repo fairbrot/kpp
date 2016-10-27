@@ -14,6 +14,7 @@ params={'preprocess': True,
         'z-cut': [8],
         'symmetry breaking': True,
         'fractional y-cut': False,
+        'removal slack': 0.5,
         'MIPFocus': 1}
   
 kpp = KPPAlgorithm(G, 3, verbosity=1, **params)

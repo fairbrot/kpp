@@ -18,6 +18,7 @@ class KPPAlgorithm:
     self.params['phase 1 removal'] = kwargs.pop('phase 1 removal', 0)
     self.params['yz-cut'] = kwargs.pop('yz-cut', [])
     self.params['phase 2 removal'] = kwargs.pop('phase 2 removal', 0)
+    self.params['removal slack'] = kwargs.pop('removal slack', 1e-3)
     self.params['z-cut'] = kwargs.pop('z-cut', [])
     self.params['symmetry breaking']  = kwargs.pop('symmetry breaking', False)
     self.params['fractional y-cut'] = kwargs.pop('fractional y-cut', False)
@@ -90,7 +91,7 @@ class KPPAlgorithm:
             print(" Fractional y-cut not appropriate")
 
       if self.params['phase 1 removal']:
-        results["phase 1 constraints removed"] = kpp.remove_redundant_constraints(hard=(self.params['phase 1 removal'] > 1))
+        results["phase 1 constraints removed"] = kpp.remove_redundant_constraints(hard=(self.params['phase 1 removal'] > 1), allowed_slack=self.params['removal slack'])
       kpp.sep_algs.clear()
 
 
@@ -106,7 +107,7 @@ class KPPAlgorithm:
       results['phase 2 time'] = end-start
       results['phase 2 lb'] = kpp.model.objVal
       if self.params['phase 2 removal']:
-        results["phase 2 constraints removed"] = kpp.remove_redundant_constraints(hard=(self.params['phase 2 removal']))
+        results["phase 2 constraints removed"] = kpp.remove_redundant_constraints(hard=(self.params['phase 2 removal']), allowed_slack=self.params['removal slack'])
       kpp.sep_algs.clear()
 
     kpp.add_node_variables()
