@@ -13,7 +13,7 @@ params={'preprocess': True,
         'phase 2 removal':1,
         'z-cut': [8],
         'symmetry breaking': True,
-        'fractional y-cut': False,
+        'fractional y-cut': True,
         'removal slack': 0.5,
         'MIPFocus': 1}
   

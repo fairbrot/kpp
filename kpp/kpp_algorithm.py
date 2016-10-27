@@ -82,13 +82,6 @@ class KPPAlgorithm:
       results['phase 1 time'] = end-start
       results['phase 1 lb'] = kpp.model.objVal
 
-      if self.params['fractional y-cut']:
-        res = kpp.add_fractional_cut()
-        if self.verbosity > 0:
-          if res:
-            print(" Added fractional y-cut")
-          else:
-            print(" Fractional y-cut not appropriate")
 
       if self.params['phase 1 removal']:
         results["phase 1 constraints removed"] = kpp.remove_redundant_constraints(hard=(self.params['phase 1 removal'] > 1), allowed_slack=self.params['removal slack'])
@@ -106,6 +99,14 @@ class KPPAlgorithm:
       end=time()
       results['phase 2 time'] = end-start
       results['phase 2 lb'] = kpp.model.objVal
+      if self.params['fractional y-cut']:
+        res = kpp.add_fractional_cut()
+        if self.verbosity > 0:
+          if res:
+            print(" Added fractional y-cut")
+          else:
+            print(" Fractional y-cut not appropriate")
+
       if self.params['phase 2 removal']:
         results["phase 2 constraints removed"] = kpp.remove_redundant_constraints(hard=(self.params['phase 2 removal']), allowed_slack=self.params['removal slack'])
       kpp.sep_algs.clear()

@@ -31,19 +31,19 @@ class KPPBase(metaclass=ABCMeta):
                     self.model.getAttr('x', self.z))
   
   def add_fractional_cut(self):
-    if self.x or self.z:
-      raise RuntimeError('Fractional y-cut can only be added before x and z variables have been added')
+    if self.x:
+      raise RuntimeError('Fractional y-cut can only be added before the x variables have been added')
     if not self.model.status == 2:
-      raise RuntimeError('Fractional y-cut can only be added after successful cutting plane phase')
-    lb = self.model.objVal
+      raise RuntimeError('Fractional y-cut can only be added after successful a cutting plane phase (and before constraint removal)')
+    y_lb = sum(self.model.getAttr('x', self.y).values())
     eps=self.model.params.optimalityTol
-    if abs(round(lb) - lb) > eps:
+    if abs(round(y_lb) - y_lb) > eps:
       sum_y = LinExpr()
       for e in self.G.es():
         u = min(e.source, e.target)
         v = max(e.source, e.target)
         sum_y.addTerms(1.0, self.y[u,v])
-      self.model.addConstr(sum_y >= ceil(lb))
+      self.model.addConstr(sum_y >= ceil(y_lb))
       return True
   
   def cut(self):
