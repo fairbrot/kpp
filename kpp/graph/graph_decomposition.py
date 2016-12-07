@@ -25,6 +25,7 @@ def avg_degree(graph):
 def analyse_components(graph, comps):
   results=dict()
   # Reduction in edges
+  orig_nodes=graph.vcount()
   orig_edges=graph.ecount()
   decomp_edges=sum(g.ecount() for g in comps)
   results['Edge Reduction'] = (orig_edges-decomp_edges)/orig_edges
@@ -35,9 +36,9 @@ def analyse_components(graph, comps):
   # results["Average Degree Increase"] = (decomp_avg_degree-orig_avg_degree)/orig_avg_degree
   # Max vertices, edges and both
   if len(comps) > 0:
-    results["Maximum Vertices"] = max(g.vcount() for g in comps)
-    results["Maximum Edges"] = max(g.ecount() for g in comps)
-    results["Maximum Size"] = max(g.vcount() + g.ecount() for g in comps)
+    results["Maximum Vertices"] = max(g.vcount()/orig_nodes for g in comps)
+    results["Maximum Edges"] = max(g.ecount()/orig_edges for g in comps)
+    results["Maximum Size"] = max(g.vcount() + g.ecount() for g in comps)/(orig_edges+orig_nodes)
   else:
     results["Maximum Vertices"] = 0
     results["Maximum Edges"] = 0
