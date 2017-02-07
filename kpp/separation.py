@@ -45,18 +45,19 @@ class Constraint(Structure):
     return out
 
 
-def p_edge_cliques(max_cliques, p):
+def p_cliques(max_cliques, p):
   p_cliques = []
-  edge_cliques = []
   for clq in max_cliques:
     if len(clq) < p:
       continue
     for p_clq in combinations(clq, p):
       p_cliques.append(p_clq)
-  for clq in p_cliques:
-    edge_clq = [(min(u, v), max(u, v)) for (u, v) in combinations(clq, 2)]
-    edge_cliques.append(edge_clq)
-  return edge_cliques
+  return p_cliques
+
+
+def edge_clique(clq):
+  e_clq = [(min(u, v), max(u, v)) for (u, v) in combinations(clq, 2)]
+  return e_clq
 
 
 class CliqueSeparator(metaclass=ABCMeta):
@@ -65,39 +66,41 @@ class CliqueSeparator(metaclass=ABCMeta):
     self.max_constraints = 10
     self.out = sys.stdout
     self.eps = 1e-3
-    self.edge_cliques = p_edge_cliques(max_cliques, p)
+    self.cliques = p_cliques(max_cliques, p)
+    self.edge_cliques = [edge_clique(clq) for clq in self.cliques]
     self.k = k
     self.p = p  # Clique size
 
   @abstractmethod
-  def calculate_violation(self, sol, e_clq):
+  def calculate_violation(self, sol, nodes, edges):
     pass
 
   def find_violated_cliques(self, sol):
-    viol_edge_cliques = []
-    for e_clq in self.edge_cliques:
-      viol = self.calculate_violation(sol, e_clq)
+    viol_clqs = []
+    for nodes, edges in zip(self.cliques, self.edge_cliques):
+      viol = self.calculate_violation(sol, nodes, edges)
       if viol > self.eps:
-        viol_edge_cliques.append((e_clq, viol))
-    return viol_edge_cliques
+        viol_clqs.append((nodes, edges, viol))
+    return viol_clqs
 
   @abstractmethod
-  def clique_constraint(self, e_clq):
+  def clique_constraint(self, nodes, edges):
     pass
 
   def find_violated_constraints(self, sol, verbosity=1):
     cons = []
-    viol_edge_cliques = self.find_violated_cliques(sol)
-    num_viol = len(viol_edge_cliques)
+    viol_clqs = self.find_violated_cliques(sol)
+    num_viol = len(viol_clqs)
     to_add = min(num_viol, self.max_constraints)
     if verbosity > 0:
-      print(" Adding {}/{} violated {}-cliques".format(to_add,
-                                                       num_viol, self.p), file=self.out)
+      msg = " Adding {}/{} violated {}-cliques".format(
+          to_add, num_viol, self.p)
+      print(msg, file=self.out)
     if to_add < num_viol:
-      viol_edge_cliques = heapq.nlargest(
-          to_add, viol_edge_cliques, key=lambda s: s[1])
-    for e_clq, viol in viol_edge_cliques:
-      cons.append(self.clique_constraint(e_clq))
+      viol_clqs = heapq.nlargest(
+          to_add, viol_clqs, key=lambda s: s[2])
+    for nodes, edges, viol in viol_clqs:
+      cons.append(self.clique_constraint(nodes, edges))
     return cons
 
 
@@ -106,12 +109,12 @@ class YCliqueSeparator(CliqueSeparator):
   def __init__(self, max_cliques, p, k):
     CliqueSeparator.__init__(self, max_cliques, p, k)
 
-  def calculate_violation(self, sol, e_clq):
-    total = sum(sol.y[e] for e in e_clq)
+  def calculate_violation(self, sol, nodes, edges):
+    total = sum(sol.y[e] for e in edges)
     return clique_rhs(self.p, self.k) - total
 
-  def clique_constraint(self, e_clq):
-    return Constraint({}, {e: 1.0 for e in e_clq}, {}, clique_rhs(self.p, self.k), '>')
+  def clique_constraint(self, nodes, edges):
+    return Constraint({}, {e: 1.0 for e in edges}, {}, clique_rhs(self.p, self.k), '>')
 
 
 class ZCliqueSeparator(CliqueSeparator):
@@ -119,12 +122,12 @@ class ZCliqueSeparator(CliqueSeparator):
   def __init__(self, max_cliques, p, k):
     CliqueSeparator.__init__(self, max_cliques, p, k)
 
-  def calculate_violation(self, sol, e_clq):
-    total = sum(sol.z[e] for e in e_clq)
+  def calculate_violation(self, sol, nodes, edges):
+    total = sum(sol.z[e] for e in edges)
     return clique_rhs(self.p, 2 * self.k) - total
 
-  def clique_constraint(self, e_clq):
-    return Constraint({}, {}, {e: 1.0 for e in e_clq}, clique_rhs(self.p, 2 * self.k), '>')
+  def clique_constraint(self, nodes, edges):
+    return Constraint({}, {}, {e: 1.0 for e in edges}, clique_rhs(self.p, 2 * self.k), '>')
 
 
 class YZCliqueSeparator(CliqueSeparator):
@@ -132,12 +135,24 @@ class YZCliqueSeparator(CliqueSeparator):
   def __init__(self, max_cliques, p, k):
     CliqueSeparator.__init__(self, max_cliques, p, k)
 
-  def calculate_violation(self, sol, e_clq):
-    lhs = 0.5 * sum(sol.y[e] for e in e_clq) - sum(sol.z[e] for e in e_clq)
+  def calculate_violation(self, sol, nodes, edges):
+    lhs = 0.5 * sum(sol.y[e] for e in edges) - sum(sol.z[e] for e in edges)
     return lhs - yz_clique_rhs(self.p)
 
-  def clique_constraint(self, e_clq):
-    return Constraint({}, {e: 0.5 for e in e_clq}, {e: -1.0 for e in e_clq}, yz_clique_rhs(self.p), '<')
+  def clique_constraint(self, nodes, edges):
+    return Constraint({}, {e: 0.5 for e in edges}, {e: -1.0 for e in edges}, yz_clique_rhs(self.p), '<')
+
+
+class ProjectedCliqueSeparator(CliqueSeparator):
+
+  def __init__(self, max_cliques, p, k, colours):
+    CliqueSeparator.__init__(self, max_cliques, p, k)
+    self.colours = colours
+
+  def calculate_violation(self, sol, nodes, edges):
+    lhs = sum(sol.x[v, c] for v in nodes for c in self.colours) + \
+        sum(sol.y[u, v] for (u, v) in edges)
+    return clique_rhs(self.p + len(self.colours), self.k) - lhs
 
 
 def clique_rhs(p, k):
