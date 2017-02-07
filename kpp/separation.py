@@ -154,6 +154,11 @@ class ProjectedCliqueSeparator(CliqueSeparator):
         sum(sol.y[u, v] for (u, v) in edges)
     return clique_rhs(self.p + len(self.colours), self.k) - lhs
 
+  def clique_constraint(self, nodes, edges):
+    return Constraint({(v, c): 1.0 for v in nodes for c in self.colours},
+                      {e: 1.0 for e in edges}, {},
+                      clique_rhs(self.p + len(self.colours), self.k), '>')
+
 
 def clique_rhs(p, k):
   t = p // k
