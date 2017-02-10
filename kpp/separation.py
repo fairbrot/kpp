@@ -119,28 +119,36 @@ class YCliqueSeparator(CliqueSeparator):
 
 class ZCliqueSeparator(CliqueSeparator):
 
-  def __init__(self, max_cliques, p, k):
+  def __init__(self, max_cliques, p, k, k2):
     CliqueSeparator.__init__(self, max_cliques, p, k)
+    self.k2 = k2
 
   def calculate_violation(self, sol, nodes, edges):
     total = sum(sol.z[e] for e in edges)
-    return clique_rhs(self.p, 2 * self.k) - total
+    return clique_rhs(self.p, self.k2 * self.k) - total
 
   def clique_constraint(self, nodes, edges):
-    return Constraint({}, {}, {e: 1.0 for e in edges}, clique_rhs(self.p, 2 * self.k), '>')
+    return Constraint({}, {}, {e: 1.0 for e in edges}, clique_rhs(self.p, self.k2 * self.k), '>')
 
 
 class YZCliqueSeparator(CliqueSeparator):
 
-  def __init__(self, max_cliques, p, k):
+  def __init__(self, max_cliques, p, k, k2):
     CliqueSeparator.__init__(self, max_cliques, p, k)
+    self.k2 = k2
 
   def calculate_violation(self, sol, nodes, edges):
-    lhs = 0.5 * sum(sol.y[e] for e in edges) - sum(sol.z[e] for e in edges)
-    return lhs - yz_clique_rhs(self.p)
+    lhs = sum(sol.y[e] for e in edges) - self.k2 * sum(sol.z[e] for e in edges)
+    t2 = self.p // self.k2
+    r2 = self.p % self.k2
+    rhs = t2 * nc2(self.k2) + nc2(r2)
+    return lhs - rhs
 
   def clique_constraint(self, nodes, edges):
-    return Constraint({}, {e: 0.5 for e in edges}, {e: -1.0 for e in edges}, yz_clique_rhs(self.p), '<')
+    t2 = self.p // self.k2
+    r2 = self.p % self.k2
+    return Constraint({}, {e: 1.0 for e in edges}, {e: -self.k2 for e in edges},
+                      t2 * nc2(self.k2) + nc2(r2), '<')
 
 
 class ProjectedCliqueSeparator(CliqueSeparator):
@@ -160,14 +168,11 @@ class ProjectedCliqueSeparator(CliqueSeparator):
                       clique_rhs(self.p + len(self.colours), self.k), '>')
 
 
+def nc2(n):
+  return (n * (n - 1)) // 2
+
+
 def clique_rhs(p, k):
   t = p // k
   r = p % k
   return 0.5 * t * ((t - 1) * (k - r) + (t + 1) * r)
-
-
-def yz_clique_rhs(p):
-  if p % 2:
-    return (p - 1) / 4
-  else:
-    return p / 4

@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 import sys
 from math import ceil
-from gurobipy import Model, GRB, LinExpr
+from gurobipy import Model, GRB, LinExpr, quicksum
 from .separation import Solution
 
 
@@ -40,7 +40,7 @@ class KPPBase(metaclass=ABCMeta):
           'Fractional y-cut can only be added after successful a cutting plane phase (and before constraint removal)')
     y_lb = sum(self.model.getAttr('x', self.y).values())
     eps = self.model.params.optimalityTol
-    if abs(round(y_lb) - y_lb) > eps:
+    if abs(ceil(y_lb) - y_lb) > eps:
       sum_y = LinExpr()
       for e in self.G.es():
         u = min(e.source, e.target)
@@ -201,13 +201,13 @@ class KPP(KPPBase):
     sol = self.get_solution()
     x, y = sol.x, sol.y
     clusters = []
-    for i in range(k):
+    for i in range(self.k):
       cluster = []
-      for j in range(n):
+      for j in range(self.G.vcount()):
         if abs(x[j, i] - 1.0) < 1e-4:
           cluster.append(j)
       clusters.append(cluster)
-    for i in range(k):
+    for i in range(self.k):
       print("Colour", i, ": ", clusters[i], file=self.out)
 
     print("Clashes: ", file=self.out)
@@ -221,8 +221,9 @@ class KPP(KPPBase):
 
 class KPPExtension(KPPBase):
 
-  def __init__(self, G, k, verbosity=1):
-    KPPBase.__init__(self, G, k, verbosity)
+  def __init__(self, G, k1, k2, verbosity=1):
+    KPPBase.__init__(self, G, k1, verbosity)
+    self.k2 = k2
 
   def add_z_variables(self):
     for e in self.G.es():
@@ -235,14 +236,14 @@ class KPPExtension(KPPBase):
       self.add_z_variables()
     n = self.G.vcount()
     for i in range(n):
-      for j in range(2 * self.k):
-        self.x[i, j] = self.model.addVar(vtype=GRB.BINARY)
+      for j in range(self.k2 * self.k):
+        self.x[i, j] = self.model.addVar(vtype=GRB.CONTINUOUS)
 
     self.model.update()
 
     for i in range(n):
       total_assign = LinExpr()
-      for j in range(2 * self.k):
+      for j in range(self.k2 * self.k):
         total_assign.addTerms(1.0, self.x[i, j])
       self.model.addConstr(total_assign == 1.0)
 
@@ -250,19 +251,22 @@ class KPPExtension(KPPBase):
       u = min(e.source, e.target)
       v = max(e.source, e.target)
       for c in range(self.k):
-        self.model.addConstr(self.y[u, v] >= self.x[
-                             u, c] + self.x[u, c + self.k] + self.x[v, c] + self.x[v, c + self.k] - 1.0)
+        mod_k_clashes = LinExpr()
+        for j in range(self.k2):
+          mod_k_clashes.addTerms(1.0, self.x[u, c + j * self.k])
+          mod_k_clashes.addTerms(1.0, self.x[v, c + j * self.k])
+        self.model.addConstr(self.y[u, v] >= mod_k_clashes - 1.0)
 
     for e in self.G.es():
       u = min(e.source, e.target)
       v = max(e.source, e.target)
-      for c in range(2 * self.k):
+      for c in range(self.k2 * self.k):
         self.model.addConstr(self.z[u, v] >= self.x[u, c] + self.x[v, c] - 1.0)
         self.model.addConstr(self.x[u, c] >= self.x[v, c] + self.z[u, v] - 1.0)
         self.model.addConstr(self.x[v, c] >= self.x[u, c] + self.z[u, v] - 1.0)
 
   def break_symmetry(self):
-    if not self.G.vcount() > 2 * self.k:
+    if not self.G.vcount() > self.k2 * self.k:
       if self.verbosity > 0:
         print('Too few nodes to add symmetry breaking constraints')
     else:
@@ -270,18 +274,12 @@ class KPPExtension(KPPBase):
         print("Adding symmetry breaking constraints")
       if not self.x:
         self.add_node_variables()
-      for i in range(self.k):
-        expr = LinExpr()
-        for c in range(i + 1):
-          expr.addTerms(1.0, self.x[i, c])
-        for c in range(self.k, self.k + i):
-          expr.addTerms(1.0, self.x[i, c])
-
-    # self.model.addConstr(self.x[0,0] == 1.0)
-    # self.model.addConstr(self.x[1,0] + self.x[1,1] + self.x[1,3] == 1.0)
-    # #self.model.addConstr(self.x[2,0] + self.x[2,1] + self.x[2,2] + self.x[2,3] + self.x[2,4] == 1.0)
-    # self.model.addConstr(self.x[2,5]==0.0)
-    # self.model.update()
+      n = self.G.vcount()
+      for v in range(n):
+        for c in range(self.k2 * self.k):
+          if (c // self.k) + (c % self.k) >= v + 1:
+            self.x[v, c].ub = self.x[v, c].start = 0.0
+    self.model.update()
 
   def print_solution(self):
     sol = self.get_solution()
@@ -289,13 +287,13 @@ class KPPExtension(KPPBase):
     clusters = []
     n = self.G.vcount()
     if x:
-      for c in range(2 * self.k):
+      for c in range(self.k2 * self.k):
         cluster = []
         for j in range(n):
           if abs(x[j, c] - 1.0) < 1e-4:
             cluster.append(j)
         clusters.append(cluster)
-      for i in range(2 * self.k):
+      for i in range(self.k2 * self.k):
         print("Colour", i, ": ", clusters[i], file=self.out)
 
     print("3-Clashes: ")

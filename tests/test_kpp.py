@@ -4,9 +4,12 @@ import igraph as ig
 from kpp import KPP, KPPExtension, YCliqueSeparator, ZCliqueSeparator, YZCliqueSeparator
 
 seed(1)
-k=2
+k = 3
+k2 = 2
+
 
 class TestKPP(unittest.TestCase):
+
   @classmethod
   def setUpClass(cls):
     super(TestKPP, cls).setUpClass()
@@ -24,7 +27,7 @@ class TestKPP(unittest.TestCase):
   def test_cuts(self):
     print("\ttest_cuts...")
     cuts_kpp = KPP(self.G, k, verbosity=0)
-    cuts_kpp.add_separator(YCliqueSeparator(self.max_cliques, k+1, k))
+    cuts_kpp.add_separator(YCliqueSeparator(self.max_cliques, k + 1, k))
     cuts_kpp.cut()
     cuts_kpp.solve()
     obj_val = cuts_kpp.model.objVal
@@ -33,13 +36,12 @@ class TestKPP(unittest.TestCase):
   def test_fractional_ycut(self):
     print("\ttest_fractional_ycut...")
     cuts_kpp = KPP(self.G, k, verbosity=0)
-    cuts_kpp.add_separator(YCliqueSeparator(self.max_cliques, k+1, k))
+    cuts_kpp.add_separator(YCliqueSeparator(self.max_cliques, k + 1, k))
     cuts_kpp.cut()
     cuts_kpp.add_fractional_cut()
     cuts_kpp.solve()
     obj_val = cuts_kpp.model.objVal
     self.assertAlmostEqual(self.obj_val, obj_val)
-    
 
   def test_break_symmetry(self):
     print("\ttest_break_symmetry...")
@@ -52,14 +54,16 @@ class TestKPP(unittest.TestCase):
   def test_cuts_and_break_symmetry(self):
     print("\ttest_cuts_and_break_symmetry...")
     kpp = KPP(self.G, k, verbosity=0)
-    kpp.add_separator(YCliqueSeparator(self.max_cliques, k+1, k))
+    kpp.add_separator(YCliqueSeparator(self.max_cliques, k + 1, k))
     kpp.cut()
     kpp.break_symmetry()
     kpp.solve()
     obj_val = kpp.model.objVal
     self.assertAlmostEqual(self.obj_val, obj_val)
 
+
 class TestKPPExtension(unittest.TestCase):
+
   @classmethod
   def setUpClass(cls):
     super(TestKPPExtension, cls).setUpClass()
@@ -67,7 +71,7 @@ class TestKPPExtension(unittest.TestCase):
     cls.G = ig.Graph.GRG(14, 0.6)
     cls.max_cliques = cls.G.maximal_cliques()
     print(cls.max_cliques)
-    plain_kpp = KPPExtension(cls.G, k, verbosity=0)
+    plain_kpp = KPPExtension(cls.G, k, k2, verbosity=0)
     plain_kpp.solve()
     cls.obj_val = plain_kpp.model.objVal
 
@@ -76,13 +80,13 @@ class TestKPPExtension(unittest.TestCase):
 
   def test_cuts(self):
     print("\ttest_cuts...")
-    cuts_kpp = KPPExtension(self.G, k, verbosity=0)
-    y_sep_alg_1 = YCliqueSeparator(self.max_cliques, k+1, k)
-    yz_sep_alg = YZCliqueSeparator(self.max_cliques, 2*k+1, k)
-    z_sep_alg = ZCliqueSeparator(self.max_cliques, 2*k+2, k)
+    cuts_kpp = KPPExtension(self.G, k, k2, verbosity=0)
+    y_sep_alg_1 = YCliqueSeparator(self.max_cliques, k + 1, k)
+    yz_sep_alg = YZCliqueSeparator(self.max_cliques, k2 * k + 1, k, k2)
+    z_sep_alg = ZCliqueSeparator(self.max_cliques, k2 * k + 2, k, k2)
     cuts_kpp.add_separator(y_sep_alg_1)
     cuts_kpp.cut()
-    cuts_kpp.sep_algs=[]
+    cuts_kpp.sep_algs = []
     cuts_kpp.add_z_variables()
     cuts_kpp.add_separator(yz_sep_alg)
     cuts_kpp.add_separator(z_sep_alg)
@@ -93,16 +97,16 @@ class TestKPPExtension(unittest.TestCase):
 
   def test_fractional_ycut(self):
     print("\ttest_fractional_ycut...")
-    cuts_kpp = KPPExtension(self.G, k, verbosity=0)
-    cuts_kpp.add_separator(YCliqueSeparator(self.max_cliques, k+1, k))
-    y_sep_alg_1 = YCliqueSeparator(self.max_cliques, k+1, k)
-    yz_sep_alg = YZCliqueSeparator(self.max_cliques, 2*k+1, k)
-    z_sep_alg = ZCliqueSeparator(self.max_cliques, 2*k+2, k)
+    cuts_kpp = KPPExtension(self.G, k, k2, verbosity=0)
+    cuts_kpp.add_separator(YCliqueSeparator(self.max_cliques, k + 1, k))
+    y_sep_alg_1 = YCliqueSeparator(self.max_cliques, k + 1, k)
+    yz_sep_alg = YZCliqueSeparator(self.max_cliques, k2 * k + 1, k, k2)
+    z_sep_alg = ZCliqueSeparator(self.max_cliques, k2 * k + 2, k, k2)
     cuts_kpp.add_separator(y_sep_alg_1)
 
     cuts_kpp.cut()
     cuts_kpp.add_fractional_cut()
-    cuts_kpp.sep_algs=[]
+    cuts_kpp.sep_algs = []
     cuts_kpp.add_z_variables()
     cuts_kpp.add_separator(yz_sep_alg)
     cuts_kpp.add_separator(z_sep_alg)
@@ -111,10 +115,9 @@ class TestKPPExtension(unittest.TestCase):
     obj_val = cuts_kpp.model.objVal
     self.assertAlmostEqual(self.obj_val, obj_val)
 
-
   def test_break_symmetry(self):
     print("\ttest_break_symmetry...")
-    sym_kpp = KPPExtension(self.G, k, verbosity=0)
+    sym_kpp = KPPExtension(self.G, k, k2, verbosity=0)
     sym_kpp.break_symmetry()
     sym_kpp.solve()
     obj_val = sym_kpp.model.objVal
@@ -122,15 +125,15 @@ class TestKPPExtension(unittest.TestCase):
 
   def test_cuts_and_break_symmetry(self):
     print("\ttest_cuts_and_break_symmetry...")
-    kpp = KPPExtension(self.G, k, verbosity=0)
-    y_sep_alg_1 = YCliqueSeparator(self.max_cliques, 4, k)
-    y_sep_alg_2 = YCliqueSeparator(self.max_cliques, 5, k)
-    yz_sep_alg = YZCliqueSeparator(self.max_cliques, 7, k)
-    z_sep_alg = ZCliqueSeparator(self.max_cliques, 8, k)
+    kpp = KPPExtension(self.G, k, k2, verbosity=0)
+    y_sep_alg_1 = YCliqueSeparator(self.max_cliques, k + 1, k)
+    y_sep_alg_2 = YCliqueSeparator(self.max_cliques, k + 2, k)
+    yz_sep_alg = YZCliqueSeparator(self.max_cliques, k * k2 + 1, k, k2)
+    z_sep_alg = ZCliqueSeparator(self.max_cliques, k * k2 + 2, k, k2)
     kpp.add_separator(y_sep_alg_1)
     kpp.add_separator(y_sep_alg_2)
     kpp.cut()
-    kpp.sep_algs=[]
+    kpp.sep_algs = []
     kpp.add_z_variables()
     kpp.add_separator(yz_sep_alg)
     kpp.add_separator(z_sep_alg)
