@@ -128,7 +128,7 @@ class KPPAlgorithm:
       if self.params['z-cut removal']:
         results["z-cut constraints removed"] = kpp.remove_redundant_constraints(
             hard=(self.params['z-cut removal']), allowed_slack=self.params['removal slack'])
-        kpp.sep_algs.clear()
+      kpp.sep_algs.clear()
 
     kpp.add_node_variables()
     if self.params['symmetry breaking']:
