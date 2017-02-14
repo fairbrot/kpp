@@ -43,7 +43,11 @@ class KPPAlgorithm:
       end = time()
       self.output['preprocess time'] = end - start
       self.output['preprocess components'] = len(graphs)
-      self.output['largest components'] = max(g.vcount() for g in graphs)
+      if len(graphs) > 0:
+        self.output['largest components'] = max(g.vcount() for g in graphs)
+      else:
+        self.output['largest components'] = 0
+
       self.output['solution'] = dict()
 
       if self.verbosity:

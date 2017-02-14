@@ -5,14 +5,14 @@ from kpp import KPP, KPPExtension, YCliqueSeparator, ZCliqueSeparator, YZCliqueS
 
 seed(1)
 
-G = ig.Graph.GRG(50, 0.3)
+G = ig.Graph.GRG(50, 0.25)
 params = {'preprocess': True,
           'y-cut': [4, 5, 7],
           'y-cut removal': 1,
           'yz-cut': [7, 8],
           'yz-cut removal': 1,
           'z-cut': [8],
-          'symmetry breaking': True,
+          'symmetry breaking': False,
           'fractional y-cut': True,
           'removal slack': 0.5,
           'MIPFocus': 1}
