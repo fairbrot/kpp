@@ -76,6 +76,8 @@ class KPPAlgorithm:
     if self.verbosity > 0:
       print("Running exact solution algorithm")
     results = dict()
+    results['nodes'] = g.vcount()
+    results['edges'] = g.ecount()
     kpp = KPPExtension(g, self.k, self.k2, verbosity=self.verbosity)
     for (key, val) in self.gurobi_params.items():
       kpp.model.setParam(key, val)
