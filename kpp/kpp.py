@@ -17,7 +17,10 @@ class KPPBase(metaclass=ABCMeta):
     for e in self.G.es():
       u = min(e.source, e.target)
       v = max(e.source, e.target)
-      self.y[u, v] = self.model.addVar(obj=1.0, ub=1.0)
+      if 'weight' in e.attributes():
+        self.y[u, v] = self.model.addVar(obj=e['weight'], ub=1.0)
+      else:
+        self.y[u, v] = self.model.addVar(obj=1.0, ub=1.0)
     self.x = {}
     self.z = {}
     self.discretized = False
