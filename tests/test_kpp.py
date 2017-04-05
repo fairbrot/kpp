@@ -144,4 +144,4 @@ class TestKPPExtension(unittest.TestCase):
     obj_val = kpp.model.objVal
     self.assertAlmostEqual(self.obj_val, obj_val)
 
-unittest.main()
+# unittest.main()
