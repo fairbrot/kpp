@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 import sys
 from math import ceil
-from gurobipy import Model, GRB, LinExpr, quicksum
+from gurobipy import Model, GRB, LinExpr
 from .separation import Solution
 
 
