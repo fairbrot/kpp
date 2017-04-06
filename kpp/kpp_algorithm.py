@@ -1,36 +1,66 @@
 from abc import ABCMeta, abstractmethod
-import sys
 from time import time
 import numpy as np
-import igraph as ig
-from .kpp import KPPExtension
-from .separation import *
+from .kpp import KPP, KPPExtension
+from .separation import YCliqueSeparator, YZCliqueSeparator, ZCliqueSeparator
 from .graph import decompose_graph
 
 
-class KPPAlgorithm:
+class KPPAlgorithmBase(metaclass=ABCMeta):
 
-  def __init__(self, G, k, k2, **kwargs):
+  def __init__(self, G, k, **kwargs):
     self.output = dict()
     self.G = G
     self.k = k
-    self.k2 = k2
     self.params = dict()
     self.params['preprocess'] = kwargs.pop('preprocess', False)
     self.params['y-cut'] = kwargs.pop('y-cut', [])
     self.params['y-cut removal'] = kwargs.pop('y-cut removal', 0)
-    self.params['yz-cut'] = kwargs.pop('yz-cut', [])
-    self.params['yz-cut removal'] = kwargs.pop('yz-cut removal', 0)
     self.params['removal slack'] = kwargs.pop('removal slack', 1e-3)
-    self.params['z-cut'] = kwargs.pop('z-cut', [])
-    self.params['z-cut removal'] = kwargs.pop('z-cut removal', 0)
     self.params['symmetry breaking'] = kwargs.pop('symmetry breaking', False)
     self.params['fractional y-cut'] = kwargs.pop('fractional y-cut', False)
-
+    self.params['x-cut'] = kwargs.pop('x-cut', [])
+    self.params['x-cut colours'] = kwargs.pop('x-cut colours', [])
+    self.params['x-cut removal'] = kwargs.pop('x-cut removal', 0)
     self.verbosity = kwargs.pop('verbosity', 1)
 
-    # Gurobi parameters
-    self.gurobi_params = kwargs
+  @abstractmethod
+  def solve_single_problem(self, g):
+    pass
+
+  def y_cut_phase(self, kpp, max_cliques, results):
+    for p in self.params['y-cut']:
+      kpp.add_separator(YCliqueSeparator(max_cliques, p, self.k))
+    start = time()
+    results['y-cut constraints added'] = kpp.cut()
+    end = time()
+    results['y-cut time'] = end - start
+    results['y-cut lb'] = kpp.model.objVal
+    if self.params['fractional y-cut']:
+      res = kpp.add_fractional_cut()
+      if self.verbosity > 0:
+        if res:
+          print(" Added fractional y-cut")
+        else:
+          print(" Fractional y-cut not appropriate")
+    if self.params['y-cut removal']:
+      results["y-cut constraints removed"] = kpp.remove_redundant_constraints(hard=(
+          self.params['y-cut removal'] > 1), allowed_slack=self.params['removal slack'])
+    kpp.sep_algs.clear()
+
+  def x_cut_phase(self, kpp, max_cliques, results):
+    for p in self.params['x-cut']:
+      for colours in self.params['x-cut colours']:
+        kpp.add_separator(YCliqueSeparator(max_cliques, p, self.k, colours))
+    start = time()
+    results['x-cut constraints added'] = kpp.cut()
+    end = time()
+    results['x-cut time'] = end - start
+    results['x-cut lb'] = kpp.model.objVal
+    if self.params['x-cut removal']:
+      results["x-cut constraints removed"] = kpp.remove_redundant_constraints(hard=(
+          self.params['x-cut removal'] > 1), allowed_slack=self.params['removal slack'])
+    kpp.sep_algs.clear()
 
   def run(self):
     if self.verbosity > 1:
@@ -72,6 +102,65 @@ class KPPAlgorithm:
 
     return self.output
 
+
+class KPPBasicAlgorithm(KPPAlgorithmBase):
+
+  def __init__(self, G, k, **kwargs):
+    KPPAlgorithmBase.__init__(self, G, k, **kwargs)
+    # Gurobi parameters
+    self.gurobi_params = kwargs
+
+  def solve_single_problem(self, g):
+    if self.verbosity > 0:
+      print("Running exact solution algorithm")
+    results = dict()
+    results['nodes'] = g.vcount()
+    results['edges'] = g.ecount()
+    kpp = KPP(g, self.k, verbosity=self.verbosity)
+    for (key, val) in self.gurobi_params.items():
+      kpp.model.setParam(key, val)
+
+    if self.params['y-cut']:
+      max_cliques = g.maximal_cliques()
+      results["clique number"] = max(len(nodes) for nodes in max_cliques)
+      self.y_cut_phase(kpp, max_cliques, results)
+
+    kpp.add_node_variables()
+    if self.params['x-cut']:
+      self.x_cut_phase(kpp, max_cliques, results)
+
+    if self.params['symmetry breaking']:
+      kpp.break_symmetry()
+
+    kpp.solve()
+    if self.verbosity > 0:
+      print('')
+
+    results["optimality gap"] = kpp.model.MIPGap
+    results["status"] = kpp.model.Status
+    if results["status"] == 2:
+      results["optimal value"] = kpp.model.objVal
+      results["branch and bound time"] = kpp.model.Runtime
+    else:
+      results["optimal value"] = np.NaN
+      results["branch and bound time"] = np.NaN
+
+    results["branch and bound nodes"] = int(kpp.model.NodeCount)
+    return results
+
+
+class KPPAlgorithm(KPPAlgorithmBase):
+
+  def __init__(self, G, k, k2, **kwargs):
+    KPPAlgorithmBase.__init__(self, G, k, **kwargs)
+    self.k2 = k2
+    self.params['yz-cut'] = kwargs.pop('yz-cut', [])
+    self.params['yz-cut removal'] = kwargs.pop('yz-cut removal', 0)
+    self.params['z-cut'] = kwargs.pop('z-cut', [])
+    self.params['z-cut removal'] = kwargs.pop('z-cut removal', 0)
+    # Gurobi parameters
+    self.gurobi_params = kwargs
+
   def solve_single_problem(self, g):
     if self.verbosity > 0:
       print("Running exact solution algorithm")
@@ -81,23 +170,13 @@ class KPPAlgorithm:
     kpp = KPPExtension(g, self.k, self.k2, verbosity=self.verbosity)
     for (key, val) in self.gurobi_params.items():
       kpp.model.setParam(key, val)
+
     if self.params['y-cut'] or self.params['yz-cut'] or self.params['z-cut']:
       max_cliques = g.maximal_cliques()
       results["clique number"] = max(len(nodes) for nodes in max_cliques)
 
     if self.params['y-cut']:
-      for p in self.params['y-cut']:
-        kpp.add_separator(YCliqueSeparator(max_cliques, p, self.k))
-      start = time()
-      results['y-cut constraints added'] = kpp.cut()
-      end = time()
-      results['y-cut time'] = end - start
-      results['y-cut lb'] = kpp.model.objVal
-
-      if self.params['y-cut removal']:
-        results["y-cut constraints removed"] = kpp.remove_redundant_constraints(hard=(
-            self.params['y-cut removal'] > 1), allowed_slack=self.params['removal slack'])
-      kpp.sep_algs.clear()
+      self.y_cut_phase(kpp, max_cliques, results)
 
     kpp.add_z_variables()
     if self.params['yz-cut']:
@@ -108,14 +187,6 @@ class KPPAlgorithm:
       end = time()
       results['yz-cut time'] = end - start
       results['yz-cut lb'] = kpp.model.objVal
-
-      if self.params['fractional y-cut']:
-        res = kpp.add_fractional_cut()
-        if self.verbosity > 0:
-          if res:
-            print(" Added fractional y-cut")
-          else:
-            print(" Fractional y-cut not appropriate")
 
       if self.params['yz-cut removal']:
         results["yz-cut constraints removed"] = kpp.remove_redundant_constraints(
@@ -137,6 +208,9 @@ class KPPAlgorithm:
       kpp.sep_algs.clear()
 
     kpp.add_node_variables()
+    if self.params['x-cut']:
+      self.x_cut_phase(kpp, max_cliques, results)
+
     if self.params['symmetry breaking']:
       kpp.break_symmetry()
 
