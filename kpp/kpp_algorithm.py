@@ -1,14 +1,16 @@
 from abc import ABCMeta, abstractmethod
 from time import time
 import numpy as np
+from copy import deepcopy
 from .kpp import KPP, KPPExtension
-from .separation import YCliqueSeparator, YZCliqueSeparator, ZCliqueSeparator
+from .separation import YCliqueSeparator, YZCliqueSeparator, ZCliqueSeparator, ProjectedCliqueSeparator
 from .graph import decompose_graph
 
 
 class KPPAlgorithmBase(metaclass=ABCMeta):
 
   def __init__(self, G, k, **kwargs):
+    kwargs = deepcopy(kwargs)
     self.output = dict()
     self.G = G
     self.k = k
@@ -19,9 +21,7 @@ class KPPAlgorithmBase(metaclass=ABCMeta):
     self.params['removal slack'] = kwargs.pop('removal slack', 1e-3)
     self.params['symmetry breaking'] = kwargs.pop('symmetry breaking', False)
     self.params['fractional y-cut'] = kwargs.pop('fractional y-cut', False)
-    self.params['x-cut'] = kwargs.pop('x-cut', [])
-    self.params['x-cut colours'] = kwargs.pop('x-cut colours', [])
-    self.params['x-cut removal'] = kwargs.pop('x-cut removal', 0)
+
     self.verbosity = kwargs.pop('verbosity', 1)
 
   @abstractmethod
@@ -46,20 +46,6 @@ class KPPAlgorithmBase(metaclass=ABCMeta):
     if self.params['y-cut removal']:
       results["y-cut constraints removed"] = kpp.remove_redundant_constraints(hard=(
           self.params['y-cut removal'] > 1), allowed_slack=self.params['removal slack'])
-    kpp.sep_algs.clear()
-
-  def x_cut_phase(self, kpp, max_cliques, results):
-    for p in self.params['x-cut']:
-      for colours in self.params['x-cut colours']:
-        kpp.add_separator(YCliqueSeparator(max_cliques, p, self.k, colours))
-    start = time()
-    results['x-cut constraints added'] = kpp.cut()
-    end = time()
-    results['x-cut time'] = end - start
-    results['x-cut lb'] = kpp.model.objVal
-    if self.params['x-cut removal']:
-      results["x-cut constraints removed"] = kpp.remove_redundant_constraints(hard=(
-          self.params['x-cut removal'] > 1), allowed_slack=self.params['removal slack'])
     kpp.sep_algs.clear()
 
   def run(self):
@@ -107,8 +93,26 @@ class KPPBasicAlgorithm(KPPAlgorithmBase):
 
   def __init__(self, G, k, **kwargs):
     KPPAlgorithmBase.__init__(self, G, k, **kwargs)
+    self.params['x-cut'] = kwargs.pop('x-cut', [])
+    self.params['x-cut colours'] = kwargs.pop('x-cut colours', [])
+    self.params['x-cut removal'] = kwargs.pop('x-cut removal', 0)
     # Gurobi parameters
     self.gurobi_params = kwargs
+
+  def x_cut_phase(self, kpp, max_cliques, results):
+    for p in self.params['x-cut']:
+      for colours in self.params['x-cut colours']:
+        kpp.add_separator(ProjectedCliqueSeparator(max_cliques, p,
+                                                   kpp.num_colours(), colours))
+    start = time()
+    results['x-cut constraints added'] = kpp.cut()
+    end = time()
+    results['x-cut time'] = end - start
+    results['x-cut lb'] = kpp.model.objVal
+    if self.params['x-cut removal']:
+      results["x-cut constraints removed"] = kpp.remove_redundant_constraints(hard=(
+          self.params['x-cut removal'] > 1), allowed_slack=self.params['removal slack'])
+    kpp.sep_algs.clear()
 
   def solve_single_problem(self, g):
     if self.verbosity > 0:
@@ -208,8 +212,6 @@ class KPPAlgorithm(KPPAlgorithmBase):
       kpp.sep_algs.clear()
 
     kpp.add_node_variables()
-    if self.params['x-cut']:
-      self.x_cut_phase(kpp, max_cliques, results)
 
     if self.params['symmetry breaking']:
       kpp.break_symmetry()

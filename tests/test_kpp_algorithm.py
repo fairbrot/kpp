@@ -12,14 +12,14 @@ from kpp import KPP, KPPExtension, KPPBasicAlgorithm, KPPAlgorithm
 seed(1)
 
 G = ig.Graph.GRG(50, 0.25)
-params = {'preprocess': True,
+params = {'preprocess': False,
           'x-cut removal': 1,
           'y-cut removal': 1,
-          'yz-cut removal': 1,
           'symmetry breaking': True,
           'fractional y-cut': True,
           'removal slack': 0.5,
-          'MIPFocus': 1}
+          'MIPFocus': 1,
+          'verbosity': 0}
 
 
 @pytest.mark.parametrize("n", [6, 7, 8, 9])
@@ -31,17 +31,27 @@ def test_KPPBasicAlgorithm(n, k):
   kpp = KPP(graph, k, verbosity=0)
   kpp.solve()
   opt_val = kpp.model.objVal
-  y_cut = range(k + 1, n + 1)
-  x_cut = range(k + 1, n + 1)
-  colours = [c for r in range(1, k) for c in combinations(range(k), r)]
-  kpp_alg = KPPBasicAlgorithm(graph, k, y_cut=y_cut, x_cut=x_cut,
-                              x_cut_colours=colours, ** params)
+  params['y-cut'] = range(k + 1, n + 1)
+  params['x-cut'] = range(k + 1, n + 1)
+  params['x-cut colours'] = [c for r in range(1, k)
+                             for c in combinations(range(k), r)]
+  kpp_alg = KPPBasicAlgorithm(graph, k, **params)
   results = kpp_alg.run()
   if params['preprocess']:
     new_opt_val = sum(results['solution']['optimal value'])
   else:
     new_opt_val = results['solution']['optimal value']
   assert isclose(opt_val, new_opt_val)
+
+
+params_ext = {'preprocess': False,
+              'y-cut removal': 1,
+              'yz-cut removal': 1,
+              'symmetry breaking': True,
+              'fractional y-cut': True,
+              'removal slack': 0.5,
+              'MIPFocus': 1,
+              'verbosity': 0}
 
 
 @pytest.mark.parametrize("n", [6, 7, 8])
@@ -54,12 +64,10 @@ def test_KPPAlgorithm(n, k, k2):
   kpp = KPPExtension(graph, k, k2, verbosity=0)
   kpp.solve()
   opt_val = kpp.model.objVal
-  y_cut = range(k + 1, n + 1)
-  x_cut = range(k + 1, n + 1)
-  z_cut = range(k * k2 + 1, n + 1)
-  colours = [c for r in range(1, k) for c in combinations(range(k), r)]
-  kpp_alg = KPPAlgorithm(graph, k, k2, y_cut=y_cut, x_cut=x_cut,
-                         x_cut_colours=colours, z_cut=z_cut, ** params)
+  params_ext['y-cut'] = range(k + 1, n + 1)
+  params_ext['yz-cut'] = range(k + 1, n + 1)
+  params_ext['z-cut'] = range(k * k2 + 1, n + 1)
+  kpp_alg = KPPAlgorithm(graph, k, k2, **params_ext)
   results = kpp_alg.run()
   if params['preprocess']:
     new_opt_val = sum(results['solution']['optimal value'])

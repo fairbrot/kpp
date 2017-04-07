@@ -159,6 +159,10 @@ class KPPBase(metaclass=ABCMeta):
   def print_solution(self):
     pass
 
+  @abstractmethod
+  def num_colours(self):
+    pass
+
 
 class KPP(KPPBase):
 
@@ -220,6 +224,9 @@ class KPP(KPPBase):
       if abs(y[u, v] - 1.0) < 1e-4:
         print((u, v), end=', ', file=self.out)
     print('\n', file=self.out)
+
+  def num_colours(self):
+    return self.k
 
 
 class KPPExtension(KPPBase):
@@ -314,3 +321,6 @@ class KPPExtension(KPPBase):
       if abs(z[u, v] - 1.0) < 1e-4:
         print((u, v), end=', ', file=self.out)
     print('\n', file=self.out)
+
+  def num_colours(self):
+    return self.k * self.k2
