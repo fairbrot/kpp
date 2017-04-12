@@ -39,12 +39,13 @@ def test_ProjectedCliqueSeparator(n, k):
   opt_val = kpp.model.objVal
   max_cliques = graph.maximal_cliques()  # [graph.vs()]
   kpp_sep = KPP(graph, k, verbosity=0)
-  for p in range(k + 1, n + 1):
-    for r in range(1, k):
+  for p in range(1, n + 1):
+    for r in range(max(k - p + 1, 1), k):
       for c in combinations(range(k), r):
         kpp_sep.add_separator(ProjectedCliqueSeparator(max_cliques, p, k, c))
   kpp_sep.add_node_variables()
-  kpp_sep.cut()
+  num = kpp_sep.cut()
+  print("Added ", num, "projected clique inequalities")
   kpp_sep.solve()
   new_opt_val = kpp_sep.model.objVal
   assert isclose(opt_val, new_opt_val)
