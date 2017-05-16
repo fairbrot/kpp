@@ -1,4 +1,5 @@
 from math import isclose
+from itertools import product
 import pytest
 import igraph as ig
 from random import seed, random
@@ -34,11 +35,14 @@ def test_ProjectedCliqueSeparator(n, k):
   graph = ig.Graph.Full(n)
   for e in graph.es():
     e["weight"] = random()
-  kpp = KPP(graph, k, verbosity=0)
+  x_coefs = dict()
+  for (i, c) in product(range(n), range(k)):
+    x_coefs[i, c] = random()
+  kpp = KPP(graph, k, x_coefs=x_coefs, verbosity=0)
   kpp.solve()
   opt_val = kpp.model.objVal
   max_cliques = graph.maximal_cliques()  # [graph.vs()]
-  kpp_sep = KPP(graph, k, verbosity=0)
+  kpp_sep = KPP(graph, k, x_coefs=x_coefs, verbosity=0)
   for p in range(1, n + 1):
     for r in range(max(k - p + 1, 1), k):
       for c in combinations(range(k), r):

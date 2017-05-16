@@ -1,4 +1,5 @@
 from random import seed
+from itertools import product
 import igraph as ig
 import yaml
 from math import isclose
@@ -15,7 +16,7 @@ G = ig.Graph.GRG(50, 0.25)
 params = {'preprocess': False,
           'x-cut removal': 1,
           'y-cut removal': 1,
-          'symmetry breaking': True,
+          'symmetry breaking': False,
           'fractional y-cut': True,
           'removal slack': 0.5,
           'MIPFocus': 1,
@@ -26,8 +27,13 @@ params = {'preprocess': False,
 @pytest.mark.parametrize("k", [2, 3, 4])
 def test_KPPBasicAlgorithm(n, k):
   graph = ig.Graph.Full(n)
+  x_coefs = dict()
+  for (i, c) in product(range(n), range(k)):
+    x_coefs[i, c] = random()
+
   for e in graph.es():
     e["weight"] = random()
+  # kpp = KPP(graph, k, x_coefs=x_coefs, verbosity=0)
   kpp = KPP(graph, k, verbosity=0)
   kpp.solve()
   opt_val = kpp.model.objVal
@@ -35,6 +41,7 @@ def test_KPPBasicAlgorithm(n, k):
   params['x-cut'] = range(k + 1, n + 1)
   params['x-cut colours'] = [c for r in range(1, k)
                              for c in combinations(range(k), r)]
+  # kpp_alg = KPPBasicAlgorithm(graph, k, x_coefs=x_coefs, **params)
   kpp_alg = KPPBasicAlgorithm(graph, k, **params)
   results = kpp_alg.run()
   if params['preprocess']:

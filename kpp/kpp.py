@@ -166,14 +166,18 @@ class KPPBase(metaclass=ABCMeta):
 
 class KPP(KPPBase):
 
-  def __init__(self, G, k, verbosity=1):
+  def __init__(self, G, k, x_coefs=None, verbosity=1):
     KPPBase.__init__(self, G, k, verbosity)
+    self.x_coefs = x_coefs
 
   def add_node_variables(self):
     n = self.G.vcount()
     for i in range(n):
       for j in range(self.k):
         self.x[i, j] = self.model.addVar(vtype=GRB.CONTINUOUS)
+    if self.x_coefs:
+      for ((i, c), coef) in self.x_coefs.items():
+        self.x[i, c].obj = coef
 
     self.model.update()
 

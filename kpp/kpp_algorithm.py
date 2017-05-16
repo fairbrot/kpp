@@ -91,8 +91,12 @@ class KPPAlgorithmBase(metaclass=ABCMeta):
 
 class KPPBasicAlgorithm(KPPAlgorithmBase):
 
-  def __init__(self, G, k, **kwargs):
+  def __init__(self, G, k, x_coefs=None, **kwargs):
     KPPAlgorithmBase.__init__(self, G, k, **kwargs)
+    self.x_coefs = x_coefs
+    if x_coefs and self.params['preprocess']:
+      raise ArgumentError(
+          'Cannot set x coefficients when preprocessing is enabled')
     self.params['x-cut'] = kwargs.pop('x-cut', [])
     self.params['x-cut colours'] = kwargs.pop('x-cut colours', [])
     self.params['x-cut removal'] = kwargs.pop('x-cut removal', 0)
@@ -120,7 +124,7 @@ class KPPBasicAlgorithm(KPPAlgorithmBase):
     results = dict()
     results['nodes'] = g.vcount()
     results['edges'] = g.ecount()
-    kpp = KPP(g, self.k, verbosity=self.verbosity)
+    kpp = KPP(g, self.k, x_coefs=self.x_coefs, verbosity=self.verbosity)
     for (key, val) in self.gurobi_params.items():
       kpp.model.setParam(key, val)
 
