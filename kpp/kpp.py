@@ -34,6 +34,21 @@ class KPPBase(metaclass=ABCMeta):
                     self.model.getAttr('x', self.y),
                     self.model.getAttr('x', self.z))
 
+  def get_colouring(self):
+    '''Map of colours to nodes with that colour'''
+    if self.discretized and self.model.status == 2:
+      n = self.G.vcount()
+      K = self.num_colours()
+      colouring = [[] for i in range(K)]
+      x = self.get_solution().x
+      for u in range(n):
+        for i in range(K):
+          if abs(x[u, i] - 1.0) < 1e-3:
+            colouring[i].append(u)
+      return colouring
+    else:
+      raise(RuntimeError('Can only extract colouring if KPP has been fully solved'))
+
   def add_fractional_cut(self):
     if self.x:
       raise RuntimeError(
@@ -148,12 +163,17 @@ class KPPBase(metaclass=ABCMeta):
   def add_node_variables(self):
     pass
 
+  @abstractmethod
+  def num_colours(self):
+    pass
+
   def discretize(self):
     if not self.x:
       raise RuntimeError(
           "Cannot discretize problem before x variables have been added")
     for var in self.x.values():
       var.vtype = GRB.BINARY
+    self.discretized = True
 
   @abstractmethod
   def print_solution(self):
@@ -169,6 +189,9 @@ class KPP(KPPBase):
   def __init__(self, G, k, x_coefs=None, verbosity=1):
     KPPBase.__init__(self, G, k, verbosity)
     self.x_coefs = x_coefs
+
+  def num_colours(self):
+    return self.k
 
   def add_node_variables(self):
     n = self.G.vcount()
@@ -238,6 +261,9 @@ class KPPExtension(KPPBase):
   def __init__(self, G, k1, k2, verbosity=1):
     KPPBase.__init__(self, G, k1, verbosity)
     self.k2 = k2
+
+  def num_colours(self):
+    return self.k * self.k2
 
   def add_z_variables(self):
     for e in self.G.es():
