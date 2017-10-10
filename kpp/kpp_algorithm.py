@@ -185,6 +185,11 @@ class KPPAlgorithm(KPPAlgorithmBase):
 
     if self.params['y-cut']:
       self.y_cut_phase(kpp, max_cliques, results)
+    else:
+      results['y-cut time'] = 0.0
+      results['y-cut lb'] = 0.0
+      results['y-cut constraints added'] = 0
+      results['y-cut constraints removed'] = 0
 
     kpp.add_z_variables()
     if self.params['yz-cut']:
@@ -200,6 +205,11 @@ class KPPAlgorithm(KPPAlgorithmBase):
         results["yz-cut constraints removed"] = kpp.remove_redundant_constraints(
             hard=(self.params['yz-cut removal']), allowed_slack=self.params['removal slack'])
       kpp.sep_algs.clear()
+    else:
+      results['yz-cut time'] = 0.0
+      results['yz-cut lb'] = results['y-cut lb']
+      results['yz-cut constraints added'] = 0
+      results['yz-cut constraints removed'] = 0
 
     if self.params['z-cut']:
       for p in self.params['z-cut']:
@@ -214,6 +224,11 @@ class KPPAlgorithm(KPPAlgorithmBase):
         results["z-cut constraints removed"] = kpp.remove_redundant_constraints(
             hard=(self.params['z-cut removal']), allowed_slack=self.params['removal slack'])
       kpp.sep_algs.clear()
+    else:
+      results['z-cut time'] = 0.0
+      results['z-cut lb'] = results['yz-cut lb']
+      results['z-cut constraints added'] = 0
+      results['z-cut constraints removed'] = 0
 
     kpp.add_node_variables()
 
