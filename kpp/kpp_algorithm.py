@@ -1,10 +1,49 @@
 from abc import ABCMeta, abstractmethod
 from time import time
 import numpy as np
-from copy import deepcopy
+from copy import deepcopy, copy
 from .kpp import KPP, KPPExtension
 from .separation import YCliqueSeparator, YZCliqueSeparator, ZCliqueSeparator, ProjectedCliqueSeparator
 from .graph import decompose_graph
+
+
+class KPPAlgorithmResults:
+
+  def __init__(self, output):
+    self.output = output
+
+  def __getitem__(self, key):
+    return self.output[key]
+
+  def algorithm_params(self):
+    return self.output['params']
+
+  def preprocess_stats(self):
+    if not self.output['params']['preprocess']:
+      return None
+    keys = ['preprocess time', 'preprocess components', 'largest components']
+    return {k: self.output[k] for k in keys}
+
+  def branch_and_bound_stats(self):
+    keys = ['optimal value', 'branch and bound time', 'ub', 'lb']
+    res = dict()
+    if self.output['params']['preprocess']:
+      if self.output['preprocess components'] == 0:
+        for k in keys:
+          res[k] = 0.0
+        res['optimality'] = True
+      else:
+        for k in keys:
+          res[k] = sum(self.output['solution'][k])
+        if np.all(np.array(self.output['solution']['status']) == 2):
+          res['optimality'] = True
+        else:
+          res['optimality'] = False
+    else:
+      for k in keys:
+        res[k] = self.output['solution'][k]
+      res['optimality'] = (self.output['solution']['status'] == 2)
+    return res
 
 
 class KPPAlgorithmBase(metaclass=ABCMeta):
@@ -12,6 +51,7 @@ class KPPAlgorithmBase(metaclass=ABCMeta):
   def __init__(self, G, k, **kwargs):
     kwargs = deepcopy(kwargs)
     self.output = dict()
+
     self.G = G
     self.k = k
     self.params = dict()
@@ -49,6 +89,7 @@ class KPPAlgorithmBase(metaclass=ABCMeta):
     kpp.sep_algs.clear()
 
   def run(self):
+    self.output['params'] = copy(self.params)
     if self.verbosity > 1:
       print('Solving 2-Level KPP')
       print('Input graph has %d nodes and %d edges' %
@@ -86,7 +127,7 @@ class KPPAlgorithmBase(metaclass=ABCMeta):
       res = self.solve_single_problem(self.G)
       self.output['solution'] = res
 
-    return self.output
+    return KPPAlgorithmResults(self.output)
 
 
 class KPPBasicAlgorithm(KPPAlgorithmBase):
@@ -146,13 +187,17 @@ class KPPBasicAlgorithm(KPPAlgorithmBase):
 
     results["optimality gap"] = kpp.model.MIPGap
     results["status"] = kpp.model.Status
+    results["branch and bound time"] = kpp.model.Runtime
     if results["status"] == 2:
       results["optimal value"] = kpp.model.objVal
-      results["branch and bound time"] = kpp.model.Runtime
     else:
       results["optimal value"] = np.NaN
-      results["branch and bound time"] = np.NaN
 
+    if kpp.model.SolCount > 0:
+      results["ub"] = kpp.model.objVal
+    else:
+      results["ub"] = np.Inf
+    results["lb"] = kpp.model.objBound
     results["branch and bound nodes"] = int(kpp.model.NodeCount)
     return results
 
