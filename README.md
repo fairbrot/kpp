@@ -36,6 +36,3 @@ Download the repository and in the package root directory run the following comm
 Or, if the user does not have superuser privileges:
 
 `python3 setup.py install --user`
-
-
-\
