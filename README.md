@@ -3,7 +3,7 @@
 `kpp` is a Python3 package for solving k-partition problems by preprocessing and cut-and-branch techniques.
 In the classical k-partition problem, one is given a weighted graph and the aim is to find a colouring which minimizes the total weight of edges whose incident nodes use the same colour. Our research in this area was motivated by applications in wireless telecommunications where the nodes of a graph represent radio devices, edges between nodes indicate the correspoding radio devices can interfere with each other, and colours correspond to frequency bands.
 
-![A graph colouring](/docs/graph2.pdf "A graph colouring")
+![A graph colouring](/docs/graph2.png)
 
 As well as providing routines for solving the classical k-partition problem, it also provides functionality for solving a two-level version of the k-partition problem.
 
